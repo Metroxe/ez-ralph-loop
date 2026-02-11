@@ -8,7 +8,7 @@
 
 import chalk from "chalk";
 import { formatToolUse, formatToolResult, formatCost, formatNumber, stripSystemReminders, getToolIcon } from "./format.js";
-import { MarkdownStreamer } from "./markdown.js";
+
 import { StickyFooter } from "./terminal.js";
 import type {
   InjectableMcp,
@@ -108,7 +108,6 @@ export async function runClaudeIteration(
     setThinkingStarted: (v: boolean) => { state.thinkingStarted = v; },
     appendOutput: (text: string) => { output += text; },
     hasStreamedContent: false,
-    markdownStreamer: new MarkdownStreamer(),
     lastTextBlock: "",
   };
 
@@ -239,7 +238,6 @@ interface ProcessingState {
   appendOutput: (text: string) => void;
   /** Track whether we've seen streaming deltas (to avoid double-printing from assistant events) */
   hasStreamedContent: boolean;
-  markdownStreamer: MarkdownStreamer;
   /** Content of the most recent text block (reset on each new text block start) */
   lastTextBlock: string;
 }
@@ -395,8 +393,6 @@ function handleBlockStart(
       blocks[idx] = { type: "tool_use", name: (block.name as string) || "tool", input: "" };
       break;
     case "text":
-      // Reset markdown streamer so state doesn't leak across tool use gaps
-      state.markdownStreamer.reset();
       state.lastTextBlock = "";
       footer.writeln("");
       blocks[idx] = { type: "text", content: "" };
@@ -428,8 +424,7 @@ function handleBlockDelta(
       const text = delta.text as string;
       if (text) {
         state.hasStreamedContent = true;
-        const sanitized = state.markdownStreamer.feed(text);
-        if (sanitized) footer.write(orangeLines(sanitized));
+        footer.write(text, "orange");
         state.appendOutput(text);
         state.lastTextBlock += text; // track most recent text block for sentinel detection
         if (blocks[idx]) {
@@ -502,9 +497,6 @@ function handleBlockStop(
     }
 
     case "text": {
-      // Flush any remaining buffered markdown
-      const remaining = state.markdownStreamer.flush();
-      if (remaining) footer.write(orangeLines(remaining));
       footer.writeln(""); // end current line
       footer.writeln(""); // blank line after text block
       break;
@@ -620,12 +612,6 @@ function handleResult(
 
 function dimLines(text: string): string {
   return text.replace(/[^\n]+/g, (m) => chalk.gray.italic(m));
-}
-
-const orange = chalk.hex("#FF9500");
-
-function orangeLines(text: string): string {
-  return text.replace(/[^\n]+/g, (m) => orange(m));
 }
 
 // ─── MCP Config Builder ────────────────────────────────────────────────

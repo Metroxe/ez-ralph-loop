@@ -1,29 +1,29 @@
 # Edge Case Analysis: `src/claude.ts` Streaming Event Processing
 
-## 1. Duplicate Output on `hasStreamedContent` Flag Race
+## 1. `hasStreamedContent` Boolean Silently Drops Non-Streamed Blocks
 
-**Trigger condition:** An `assistant` event arrives containing content blocks, but *some* blocks were streamed via `content_block_delta` while others were not (e.g., the CLI emits a partial streaming sequence interrupted by a reconnect). The flag `hasStreamedContent` is a single boolean for the entire turn — if *any* delta arrived, the *entire* assistant message is suppressed, silently dropping unstreamed blocks.
+**Trigger condition:** An assistant turn contains multiple content blocks, but only some are delivered via `content_block_delta` events. Any single block start or delta sets `hasStreamedContent = true` (lines 387-389, 426), causing `handleAssistantMessage` (line 519) to skip the *entire* `message.content` array — silently dropping blocks that were never individually streamed (e.g., a short text block alongside a streamed tool_use).
 
-**Severity:** High — tool-use blocks or text blocks can be silently lost from the output, causing the user to miss actions Claude took.
+**Severity:** High — text or tool-use blocks are silently lost from both display output and `state.lastTextBlock`, breaking rendering and sentinel-based loop control.
 
-**Fix:** Track streamed block indices in a `Set<number>` instead of a single boolean, and in `handleAssistantMessage` only skip blocks whose index was already streamed.
-
----
-
-## 2. Block Index Collision Across Interleaved Turns
-
-**Trigger condition:** The `blocks` record (`Record<number, StreamingBlock>`) is never cleared between assistant turns within a single iteration. If the CLI emits two consecutive assistant messages (e.g., after a tool-use round-trip) that both use index `0` for their first block, the second `content_block_start` at index 0 overwrites the first entry before `content_block_stop` can clean it up — or worse, a lingering entry from a prior turn causes `handleBlockStop` to process stale data.
-
-**Severity:** Medium — produces garbled tool-use formatting or phantom "remaining markdown" flushes from a previous block's state leaking into the next turn.
-
-**Fix:** Reset `blocks` to `{}` when a `message_start` event is received (line 287–289 currently ignores it).
+**Fix:** Replace the single boolean with a `Set<number>` of streamed block indices; in `handleAssistantMessage`, only skip blocks whose index appears in the set.
 
 ---
 
-## 3. `lastTextBlock` Not Updated in the `handleAssistantMessage` Fallback Path
+## 2. `lastTextBlock` Not Updated in `handleAssistantMessage` Fallback Path
 
-**Trigger condition:** When `hasStreamedContent` is `false` and the assistant message is processed via the fallback path in `handleAssistantMessage` (lines 533–553), text content is written to output but `state.lastTextBlock` is never set. This means sentinel string detection (`stopString` / `continueString` at lines 212–218) checks against an empty or stale `lastTextBlock`, failing to detect stop/continue signals and causing the loop to either run extra iterations or terminate early.
+**Trigger condition:** When no streaming deltas are received (`hasStreamedContent` is false — e.g., very short responses or the CLI batching output without streaming), `handleAssistantMessage` (lines 528-533) writes text to output and the footer but never assigns `state.lastTextBlock`. Sentinel string detection at lines 212-217 then checks an empty/stale `lastTextBlock`, failing to detect `stopString` or `continueString`.
 
-**Severity:** High — the loop's stop/continue control flow is broken for any iteration where streaming deltas were not received (e.g., very short responses, network issues causing the CLI to batch output).
+**Severity:** High — loop control flow is broken for any iteration where streaming deltas were absent; the loop either fails to terminate on a stop signal or runs unnecessary extra iterations, wasting API spend.
 
-**Fix:** Add `state.lastTextBlock = cleaned;` after line 539 in the fallback text-block handling branch.
+**Fix:** Add `state.lastTextBlock = cleaned;` after line 530 in the fallback text-block handling branch.
+
+---
+
+## 3. Block Index Collision Across Assistant Turns
+
+**Trigger condition:** The `blocks` record (line 103) is allocated once per iteration and never cleared between assistant turns. The Claude streaming API reuses index 0 for each new message's first `content_block_start`. If a prior turn's block was not cleaned up (no `content_block_stop` received due to truncated stream or network error), the new turn's block at the same index silently overwrites the stale entry, leaking corrupted `input`/`content` into formatting.
+
+**Severity:** Medium — causes garbled tool-use formatting or phantom content from a previous turn; normally masked by `delete blocks[idx]` at line 506 but exposed under network interruption or rapid multi-turn agentic responses.
+
+**Fix:** Clear all entries in `blocks` when a `message_start` event is received (lines 285-289), instead of ignoring it as a no-op.
