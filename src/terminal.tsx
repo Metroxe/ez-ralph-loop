@@ -8,19 +8,24 @@
 
 import React, { useState, useEffect, useSyncExternalStore } from "react";
 import { render, Box, Text, Static } from "ink";
+import chalk from "chalk";
 import { formatCost, formatDuration, formatNumber } from "./format.js";
 import type { CumulativeStats, LiveIterationStats } from "./types.js";
+
+const orange = chalk.hex("#FF9500");
 
 // ─── Store ────────────────────────────────────────────────────────────
 
 interface LineItem {
   id: number;
   text: string;
+  style?: "orange";
 }
 
 interface StoreState {
   lines: LineItem[];
   currentLine: string;
+  currentLineStyle?: "orange";
   liveStats: LiveIterationStats | null;
   cumulative: CumulativeStats;
 }
@@ -57,12 +62,13 @@ class TerminalStore {
     for (const l of this.listeners) l();
   }
 
-  write(text: string): void {
+  write(text: string, style?: "orange"): void {
     const parts = text.split("\n");
 
     if (parts.length === 1) {
       // No newlines — just append to current line
       this.state.currentLine += parts[0];
+      if (style !== undefined) this.state.currentLineStyle = style;
       this.emit();
       return;
     }
@@ -70,11 +76,14 @@ class TerminalStore {
     // Flush complete lines
     const newLines = [...this.state.lines];
     let currentLine = this.state.currentLine;
+    // First committed line inherits existing style (or overrides with new style)
+    let lineStyle: "orange" | undefined = style ?? this.state.currentLineStyle;
 
     for (let i = 0; i < parts.length; i++) {
       if (i < parts.length - 1) {
-        newLines.push({ id: this.lineCounter++, text: currentLine + parts[i] });
+        newLines.push({ id: this.lineCounter++, text: currentLine + parts[i], style: lineStyle });
         currentLine = "";
+        lineStyle = style; // subsequent lines use only this write's style
       } else {
         currentLine = parts[i];
       }
@@ -82,6 +91,8 @@ class TerminalStore {
 
     this.state.lines = newLines;
     this.state.currentLine = currentLine;
+    // Only carry style forward if there's content on the current line
+    this.state.currentLineStyle = currentLine ? style : undefined;
     this.emit();
   }
 
@@ -177,9 +188,17 @@ function App({ store }: { store: TerminalStore }) {
   return (
     <Box flexDirection="column">
       <Static items={state.lines}>
-        {(line) => <Text key={line.id}>{line.text || " "}</Text>}
+        {(line) => (
+          <Text key={line.id} color={line.style === "orange" ? "#FF9500" : undefined}>
+            {line.text || " "}
+          </Text>
+        )}
       </Static>
-      {state.currentLine ? <Text>{state.currentLine}</Text> : null}
+      {state.currentLine ? (
+        <Text color={state.currentLineStyle === "orange" ? "#FF9500" : undefined}>
+          {state.currentLine}
+        </Text>
+      ) : null}
       <Footer liveStats={state.liveStats} cumulative={state.cumulative} />
     </Box>
   );
@@ -215,20 +234,25 @@ export class StickyFooter {
     }
   }
 
-  write(text: string): void {
+  write(text: string, style?: "orange"): void {
     if (this.logWriter) {
       this.logWriter.write(text);
     }
 
     if (this.inkInstance) {
-      this.store.write(text);
+      this.store.write(text, style);
     } else {
-      process.stdout.write(text);
+      // Non-Ink fallback: apply color inline via ANSI codes
+      if (style === "orange") {
+        process.stdout.write(text.replace(/[^\n]+/g, (m) => orange(m)));
+      } else {
+        process.stdout.write(text);
+      }
     }
   }
 
-  writeln(text: string): void {
-    this.write(text + "\n");
+  writeln(text: string, style?: "orange"): void {
+    this.write(text + "\n", style);
   }
 
   setLiveStats(stats: LiveIterationStats): void {
