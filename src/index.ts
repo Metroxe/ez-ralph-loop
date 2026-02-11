@@ -616,6 +616,7 @@ async function runLoop(config: LoopConfig): Promise<void> {
   process.on("SIGTERM", cleanup);
 
   footer.activate();
+  footer.setRerunCommand(buildRerunCommand(config));
 
   const maxIterations = config.iterations === 0 ? Infinity : config.iterations;
   let stopReason: string | undefined;
@@ -740,13 +741,6 @@ async function main(): Promise<void> {
 
   // Validate
   await validateConfig(config);
-
-  // Show re-run command
-  const rerunCmd = buildRerunCommand(config);
-  console.log("");
-  console.log(chalk.dim("To re-run with these settings:"));
-  console.log(chalk.cyan(`  ${rerunCmd}`));
-  console.log("");
 
   // Show config summary
   console.log(chalk.bold("Configuration:"));

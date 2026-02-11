@@ -1,54 +1,52 @@
-# Streaming Event Processing: Edge Case Analysis
+# Edge Case Analysis: src/claude.ts Streaming Event Processing
 
-Source: `src/claude.ts`
+## Edge Case 1: Unparsed Buffer Remainder After Stream Completion
 
----
+**Trigger Condition:** Stream ends with incomplete line (no trailing `\n`). The readline loop (lines 132-190) only processes complete lines. When `done === true` at line 126, remaining `buffer` content bypasses JSON parsing and gets written as raw text (lines 197-200).
 
-## Edge Case 1: Remaining buffer after stream ends is not parsed as JSON
+**Severity:** CRITICAL
 
-**Trigger condition:** The Claude process writes its final JSON line (often the `result` event) without a trailing `\n`. The read loop (lines 121–182) only processes complete lines delimited by newlines. The leftover data stays in `buffer` and falls to the post-loop handler (lines 188–191), which writes it as raw text — never passing it through `JSON.parse` or `processEvent`.
-
-**Severity:** HIGH — Silently drops the `result` event, causing `tokenUsage` and `costUsd` to remain `undefined`. Also prevents `lastTextBlock` from being updated if the final text block was in progress, breaking `stopStringDetected` / `continueStringDetected` sentinel logic.
-
-**Fix:** After the read loop, attempt `processEvent(JSON.parse(buffer.trim()), ...)` before falling back to raw text output.
+**One-Line Fix:** Before line 197, add: `try { const ev = JSON.parse(buffer.trim()); await processEvent(ev, blocks, footer, liveStats, config, state, debugFile); buffer = ""; } catch { }`
 
 ---
 
-## Edge Case 2: `hasStreamedContent` boolean suppresses non-streamed blocks in mixed assistant messages
+## Edge Case 2: Content Block Delta Without Prior Start Event
 
-**Trigger condition:** An assistant message contains multiple content blocks, but only some were delivered via `content_block_start`/`content_block_delta` (e.g., connection instability drops some blocks, or the CLI batches them). The flag `hasStreamedContent` is set `true` on the *first* streaming block (line 391/429). When `handleAssistantMessage` fires (line 522), it sees the flag, resets it to `false`, and skips the *entire* message — including blocks that were never streamed.
+**Trigger Condition:** `content_block_delta` event arrives for index with no prior `content_block_start`. The delta handlers (lines 433-471) write content to footer/output BEFORE checking `if (blocks[idx])` (lines 435-439 for text, 448-456 for thinking). When `content_block_stop` arrives (line 474), it finds no block at `blocks[idx]` and skips all formatting (line 482).
 
-**Severity:** HIGH — Silently drops content (text, tool use summaries) that was present in the assistant event but never delivered via deltas, with no indication to the user.
+**Severity:** HIGH
 
-**Fix:** Replace the boolean with a `Set<number>` of streamed block indices; in `handleAssistantMessage`, only skip blocks whose index is in the set.
-
----
-
-## Edge Case 3: `content_block_delta` for an unknown block index produces orphaned output
-
-**Trigger condition:** A `content_block_delta` arrives for an index that never received a `content_block_start` (dropped/reordered stream event, or a protocol version mismatch). The delta handler checks `if (blocks[idx])` (lines 433, 451, 459) and skips updating the block record, but for `text_delta` and `thinking_delta` it *still* writes to the footer and appends to `output`/`lastTextBlock` unconditionally (lines 430–432, 448–449). The subsequent `content_block_stop` finds no block and returns early (line 475), skipping all formatting cleanup (tool-use summaries, blank-line separators, thinking newlines).
-
-**Severity:** MEDIUM — Produces malformed terminal output: missing tool-use icons/descriptions, missing section separators, and leaked ANSI state from thinking blocks that never get their closing newline.
-
-**Fix:** In `handleBlockDelta`, if `blocks[idx]` is `undefined`, create a synthetic block entry (e.g., `{ type: "text", content: "" }`) so `handleBlockStop` can clean up correctly.
+**One-Line Fix:** At line 426 in `handleBlockDelta`, add: `if (!blocks[idx]) blocks[idx] = { type: "text", content: "" };`
 
 ---
 
-# Task 2: Constraint Scheduling Problem
+## Edge Case 3: Global Boolean Suppresses Unstreamed Blocks in Mixed Messages
 
-## Problem
+**Trigger Condition:** Assistant message contains multiple blocks, but only some arrive via streaming deltas. The `hasStreamedContent` flag is set on ANY streaming block (lines 398, 436). When `handleAssistantMessage` executes (line 519), it checks this flag at line 529 and skips printing the ENTIRE message if true—including blocks that were never streamed.
 
-Assign 5 tasks to 3 workers:
-- **Durations:** A=3, B=5, C=2, D=4, E=1
-- **Constraints:**
-  1. A must finish before C starts (precedence: A → C)
-  2. B and D cannot share a worker (conflict)
-  3. E must be on W2 (fixed assignment)
-  4. Max 2 tasks per worker (capacity)
+**Severity:** HIGH
 
-**Objective:** Minimize makespan (completion time of the last worker).
+**One-Line Fix:** Replace `hasStreamedContent: boolean` with `streamedBlockIndices: Set<number>`, track indices in start/delta handlers, and in `handleAssistantMessage` only skip blocks present in the set.
 
-## Optimal Schedule — Makespan = 5
+---
+
+# Constraint Scheduling Problem Solution
+
+## Problem Statement
+
+Assign 5 tasks (A=3, B=5, C=2, D=4, E=1) to 3 workers:
+
+**Constraints:**
+1. A must finish before C starts (A → C)
+2. B and D cannot share a worker
+3. E must be on W2
+4. Max 2 tasks per worker
+
+**Objective:** Minimize makespan (total completion time)
+
+---
+
+## Optimal Solution: Makespan = 5
 
 ```
 Time:  0   1   2   3   4   5
@@ -57,47 +55,48 @@ W2:    [E][=====D=====]
 W3:    [========B========]
 ```
 
-| Worker | Tasks | Timeline | Completion |
+| Worker | Tasks | Schedule | Completion |
 |--------|-------|----------|------------|
-| W1 | A, C | A: [0,3], C: [3,5] | 5 |
-| W2 | E, D | E: [0,1], D: [1,5] | 5 |
-| W3 | B | B: [0,5] | 5 |
+| W1 | A, C | A:[0,3], C:[3,5] | 5 |
+| W2 | E, D | E:[0,1], D:[1,5] | 5 |
+| W3 | B | B:[0,5] | 5 |
 
-### Constraint Verification
+**Constraint Verification:**
+- ✓ A→C precedence: A ends at t=3, C starts at t=3
+- ✓ B≠D worker: B on W3, D on W2
+- ✓ E on W2: satisfied
+- ✓ Max 2 tasks/worker: W1=2, W2=2, W3=1
 
-1. **A → C:** A finishes at t=3, C starts at t=3. Satisfied.
-2. **B ≠ D worker:** B on W3, D on W2. Satisfied.
-3. **E on W2:** E assigned to W2. Satisfied.
-4. **Max 2 tasks/worker:** W1=2, W2=2, W3=1. All ≤ 2. Satisfied.
+---
 
-## Proof That No Better Solution Exists
+## Proof of Optimality
 
-### Three independent lower bounds all equal 5
+### Lower Bounds (All Equal 5)
 
-**LB1 — Longest single task:** B has duration 5. Any schedule must complete B, so makespan ≥ 5.
+**LB1 — Longest task:** B = 5 → makespan ≥ 5
 
-**LB2 — Precedence chain:** A→C forces sequential execution: 3 + 2 = 5. So makespan ≥ 5.
+**LB2 — Precedence chain:** A→C forces sequential execution: 3 + 2 = 5 → makespan ≥ 5
 
-**LB3 — Total work / workers:** Total work = 3+5+2+4+1 = 15. With 3 workers: ⌈15/3⌉ = 5. So makespan ≥ 5.
+**LB3 — Workload balance:** Total work = 15, across 3 workers: ⌈15/3⌉ = 5 → makespan ≥ 5
 
-### Our schedule achieves makespan = 5
+Since our solution achieves makespan = 5 (matching all lower bounds), **no solution with makespan < 5 can exist**.
 
-Since makespan ≥ 5 (from all three lower bounds) and our solution achieves exactly 5, **no schedule with makespan < 5 can exist**.
+### Assignment is Forced by Constraints
 
-### Exhaustive verification that constraints force this assignment
+1. **E must be on W2** (constraint 3). W2 has capacity for one more task (constraint 4).
 
-Even the assignment itself is essentially unique (up to symmetry of W1/W3 labels):
+2. **D must pair with E on W2:** If D goes elsewhere, B cannot share with D (constraint 2), forcing B and D on separate non-W2 workers. This leaves E alone on W2 and creates imbalance. The only way to achieve makespan ≤ 5 is E+D on W2 (1+4=5).
 
-- **E is fixed on W2.** W2 has capacity for one more task.
-- **B = 5.** If B goes on W2: E+B = 1+5 = 6 > 5 (exceeds lower bound). So B must go on W1 or W3.
-- **D = 4.** If D shares a worker with B: violates constraint 2. So D is on a different worker from B.
-- **A+C = 5.** They must execute sequentially on the same worker (splitting them across workers wastes idle time waiting for A and pushes makespan above 5).
+3. **A and C must stay together:** The precedence constraint A→C means if they're split across workers, the worker executing C must idle until A completes, introducing slack → makespan ≥ 6. Keeping them together: A+C = 3+2 = 5 exactly.
 
-The only way to achieve makespan = 5:
-- W2 = {E(1), D(4)} = 5 (the only pairing that fills W2 to exactly 5)
-- One of {W1, W3} gets B(5) alone
-- The other gets A(3) then C(2) = 5
+4. **B occupies remaining worker alone:** With E-D on W2 and A-C on another worker, B goes to the third worker: B = 5 exactly.
 
-Any deviation (B on W2, splitting A/C, co-locating B and D) yields makespan ≥ 6.
+### Exhaustive Alternatives All Fail
 
-**QED. The optimal makespan is 5 and no better solution exists.**
+- **E+B on W2:** 1+5 = 6 > 5 ✗
+- **D pairs with B:** Violates constraint 2 ✗
+- **A and C split:** Introduces idle time → makespan ≥ 6 ✗
+- **D pairs with A or C:** Creates unbalanced load (7, 6, or 9) ✗
+- **E not on W2:** Violates constraint 3 ✗
+
+**Therefore, makespan = 5 is optimal and no better solution exists. QED.**

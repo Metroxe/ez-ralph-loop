@@ -82,8 +82,12 @@ export async function runClaudeIteration(
     costUsd: 0,
     inputTokens: 0,
     outputTokens: 0,
+    contextPercent: 0,
   };
   footer.setLiveStats(liveStats);
+
+  // Max context window tokens (200k for all current Claude models)
+  let maxContextTokens = 200_000;
 
   footer.writeln(chalk.dim("  ◆ Starting Claude..."));
 
@@ -151,6 +155,10 @@ export async function runClaudeIteration(
             const u = event.message.usage as Record<string, number>;
             liveStats.inputTokens += u.input_tokens || 0;
             liveStats.outputTokens += u.output_tokens || 0;
+            // Context % = latest turn's (input + output) / max context window
+            // input_tokens includes full conversation history for this turn
+            const turnTotal = (u.input_tokens || 0) + (u.output_tokens || 0);
+            liveStats.contextPercent = Math.min(100, (turnTotal / maxContextTokens) * 100);
             footer.setLiveStats(liveStats);
           }
 
@@ -170,6 +178,8 @@ export async function runClaudeIteration(
             liveStats.costUsd = costUsd;
             liveStats.inputTokens = tokenUsage?.inputTokens || 0;
             liveStats.outputTokens = tokenUsage?.outputTokens || 0;
+            const resultTotal = (tokenUsage?.inputTokens || 0) + (tokenUsage?.outputTokens || 0);
+            liveStats.contextPercent = Math.min(100, (resultTotal / maxContextTokens) * 100);
             footer.setLiveStats(liveStats);
           }
         } catch {

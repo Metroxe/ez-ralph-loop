@@ -136,4 +136,6 @@ export interface LiveIterationStats {
   costUsd: number;
   inputTokens: number;
   outputTokens: number;
+  /** Estimated context window usage as a percentage (0-100) */
+  contextPercent: number;
 }
