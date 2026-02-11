@@ -69,29 +69,29 @@ async function downloadFile(url: string): Promise<string> {
   return res.text();
 }
 
-/** Check which files already exist in CWD. */
-async function checkConflicts(filePaths: string[]): Promise<string[]> {
-  const conflicts: string[] = [];
-  for (const filePath of filePaths) {
-    const file = Bun.file(filePath);
-    if (await file.exists()) {
-      conflicts.push(filePath);
-    }
-  }
-  return conflicts;
+/** Generate a timestamped output directory name, e.g. "research-20260211-143022". */
+function makeOutputDir(dirName: string): string {
+  const now = new Date();
+  const ts = [
+    now.getFullYear(),
+    String(now.getMonth() + 1).padStart(2, "0"),
+    String(now.getDate()).padStart(2, "0"),
+    "-",
+    String(now.getHours()).padStart(2, "0"),
+    String(now.getMinutes()).padStart(2, "0"),
+    String(now.getSeconds()).padStart(2, "0"),
+  ].join("");
+  return `${dirName}-${ts}`;
 }
 
-/** Parse boilerplate subcommand args: `boilerplate [--name <name>] [--force]` */
-function parseBoilerplateArgs(): { name?: string; force: boolean } {
+/** Parse boilerplate subcommand args: `boilerplate [--name <name>]` */
+function parseBoilerplateArgs(): { name?: string } {
   const args = process.argv.slice(3);
   let name: string | undefined;
-  let force = false;
 
   for (let i = 0; i < args.length; i++) {
     if ((args[i] === "--name" || args[i] === "-n") && args[i + 1]) {
       name = args[++i];
-    } else if (args[i] === "--force" || args[i] === "-f") {
-      force = true;
     } else if (args[i] === "--list" || args[i] === "-l") {
       // handled separately
     } else if (args[i] === "--help" || args[i] === "-h") {
@@ -100,14 +100,13 @@ function parseBoilerplateArgs(): { name?: string; force: boolean } {
         `Options:\n` +
         `  -n, --name <name>  boilerplate to use (skip interactive selection)\n` +
         `  -l, --list         list available boilerplates and exit\n` +
-        `  -f, --force        overwrite existing files without prompting\n` +
         `  -h, --help         show this help\n`,
       );
       process.exit(0);
     }
   }
 
-  return { name, force };
+  return { name };
 }
 
 function shouldList(): boolean {
@@ -115,7 +114,7 @@ function shouldList(): boolean {
 }
 
 export async function runBoilerplate(): Promise<void> {
-  const { name: requestedName, force } = parseBoilerplateArgs();
+  const { name: requestedName } = parseBoilerplateArgs();
   const listOnly = shouldList();
   const interactive = !requestedName && !listOnly;
 
@@ -208,52 +207,27 @@ export async function runBoilerplate(): Promise<void> {
   spinner?.stop(`${files.length} file${files.length > 1 ? "s" : ""} to copy`);
   if (!interactive) console.log(`${files.length} file${files.length > 1 ? "s" : ""} to copy`);
 
-  // Check for conflicts
-  const conflicts = await checkConflicts(files.map((f) => f.relativePath));
+  // Create a timestamped output directory
+  const outputDir = makeOutputDir(dirName);
+  await Bun.spawn(["mkdir", "-p", outputDir]).exited;
 
-  if (conflicts.length > 0) {
-    const warning =
-      `The following files already exist and will be overwritten:\n` +
-      conflicts.map((f) => `  ${chalk.yellow(f)}`).join("\n");
-
-    if (interactive && !force) {
-      p.log.warn(warning);
-
-      const proceed = await p.confirm({
-        message: "Overwrite existing files?",
-        initialValue: false,
-      });
-
-      if (p.isCancel(proceed) || !proceed) {
-        p.cancel("Cancelled.");
-        process.exit(0);
-      }
-    } else if (!force) {
-      console.error(chalk.yellow(warning));
-      console.error(chalk.red("Use --force to overwrite."));
-      process.exit(1);
-    } else {
-      console.log(chalk.yellow(warning));
-      console.log("Overwriting (--force).");
-    }
-  }
-
-  // Download and write files
+  // Download and write files into the output directory
   spinner?.start("Copying files...");
   if (!interactive) console.log("Copying files...");
 
   try {
     for (const file of files) {
       const content = await downloadFile(file.downloadUrl);
+      const destPath = `${outputDir}/${file.relativePath}`;
 
       // Ensure parent directories exist
-      const lastSlash = file.relativePath.lastIndexOf("/");
+      const lastSlash = destPath.lastIndexOf("/");
       if (lastSlash !== -1) {
-        const dir = file.relativePath.substring(0, lastSlash);
+        const dir = destPath.substring(0, lastSlash);
         await Bun.spawn(["mkdir", "-p", dir]).exited;
       }
 
-      await Bun.write(file.relativePath, content);
+      await Bun.write(destPath, content);
     }
   } catch (err) {
     spinner?.stop("Failed to copy files");
@@ -265,16 +239,17 @@ export async function runBoilerplate(): Promise<void> {
 
   // Show what was copied
   for (const file of files) {
+    const destPath = `${outputDir}/${file.relativePath}`;
     if (interactive) {
-      p.log.success(file.relativePath);
+      p.log.success(destPath);
     } else {
-      console.log(chalk.green(`  ✓ ${file.relativePath}`));
+      console.log(chalk.green(`  ✓ ${destPath}`));
     }
   }
 
   if (interactive) {
-    p.outro(chalk.green(`Done! Run ${chalk.bold("cig-loop")} to start.`));
+    p.outro(chalk.green(`Done! Files are in ${chalk.bold(outputDir)}/\nRun ${chalk.bold(`cd ${outputDir} && cig-loop`)} to start.`));
   } else {
-    console.log(chalk.green(`\nDone! Run ${chalk.bold("cig-loop")} to start.`));
+    console.log(chalk.green(`\nDone! Files are in ${chalk.bold(outputDir)}/\nRun ${chalk.bold(`cd ${outputDir} && cig-loop`)} to start.`));
   }
 }
