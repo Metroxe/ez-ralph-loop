@@ -28,6 +28,7 @@ interface StoreState {
   currentLineStyle?: "orange";
   liveStats: LiveIterationStats | null;
   cumulative: CumulativeStats;
+  rerunCommand: string | null;
 }
 
 class TerminalStore {
@@ -47,6 +48,7 @@ class TerminalStore {
         totalInputTokens: 0,
         totalOutputTokens: 0,
       },
+      rerunCommand: null,
     };
   }
 
@@ -107,6 +109,11 @@ class TerminalStore {
 
   setCumulative(stats: CumulativeStats): void {
     this.state.cumulative = stats;
+    this.emit();
+  }
+
+  setRerunCommand(cmd: string): void {
+    this.state.rerunCommand = cmd;
     this.emit();
   }
 }
@@ -268,9 +275,11 @@ function SmokingCigarette() {
 function Footer({
   liveStats,
   cumulative,
+  rerunCommand,
 }: {
   liveStats: LiveIterationStats | null;
   cumulative: CumulativeStats;
+  rerunCommand: string | null;
 }) {
   const [now, setNow] = useState(Date.now());
 
@@ -293,7 +302,7 @@ function Footer({
     const bar = progressBar(liveStats.iteration, liveStats.totalIterations);
 
     line1 = ` ${iterLabel} ${bar}`;
-    line2 = ` ▸ Current:  ${formatDuration(elapsed)} │ ${formatNumber(liveStats.inputTokens)} in / ${formatNumber(liveStats.outputTokens)} out`;
+    line2 = ` ▸ Current:  ${formatDuration(elapsed)} │ ${formatNumber(liveStats.inputTokens)} in / ${formatNumber(liveStats.outputTokens)} out │ ${Math.round(liveStats.contextPercent)}% context`;
   } else {
     line1 = " Waiting...";
     line2 = "";
@@ -318,14 +327,16 @@ function Footer({
       <Text dimColor>{"━".repeat(cols)}</Text>
       <Box
         flexDirection={isWide ? "row" : "column"}
-        alignItems={isWide ? "center" : undefined}
+        alignItems={isWide ? "flex-start" : undefined}
       >
         <Box flexDirection="column" flexGrow={1}>
           <Text bold>{line1}</Text>
           <Text color="cyan">{line2}</Text>
           <Text color="yellow">{line3}</Text>
+          {rerunCommand ? <Text color="magenta">{` ▸ Rerun:    ${rerunCommand}`}</Text> : null}
           <Text dimColor>{" Usage: https://claude.ai/settings/usage"}</Text>
         </Box>
+        {!isWide && <Text>{" "}</Text>}
         <SmokingCigarette />
       </Box>
     </Box>
@@ -351,7 +362,7 @@ function App({ store }: { store: TerminalStore }) {
           {state.currentLine}
         </Text>
       ) : null}
-      <Footer liveStats={state.liveStats} cumulative={state.cumulative} />
+      <Footer liveStats={state.liveStats} cumulative={state.cumulative} rerunCommand={state.rerunCommand} />
     </Box>
   );
 }
@@ -413,6 +424,10 @@ export class StickyFooter {
 
   setCumulative(stats: CumulativeStats): void {
     this.store.setCumulative(stats);
+  }
+
+  setRerunCommand(cmd: string): void {
+    this.store.setRerunCommand(cmd);
   }
 
   getCumulative(): CumulativeStats {
