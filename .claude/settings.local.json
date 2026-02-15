@@ -16,7 +16,13 @@
       "Bash(git push:*)",
       "Bash(git -C /Users/cvp/Documents/projects/ez-ralph-loop log:*)",
       "Bash(git -C /Users/cvp/Documents/projects/ez-ralph-loop show 3c44ea0:boilerplates/web-research/PROMPT.md)",
-      "Bash(git -C /Users/cvp/Documents/projects/ez-ralph-loop diff --name-status HEAD)"
+      "Bash(git -C /Users/cvp/Documents/projects/ez-ralph-loop diff --name-status HEAD)",
+      "Bash(env:*)",
+      "Bash(grep:*)",
+      "Bash(# Check if there are project-scoped MCPs for this specific project cat ~/.claude.json)",
+      "Bash(unset:*)",
+      "Bash(gtimeout 30 claude:*)",
+      "Bash(perl -e 'alarm 30; exec @ARGV' claude --chrome -p \"hi\" --output-format stream-json --verbose)"
     ]
   }
 }
