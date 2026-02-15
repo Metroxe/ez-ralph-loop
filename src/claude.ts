@@ -148,9 +148,11 @@ export async function runClaudeIteration(
             const u = event.message.usage as Record<string, number>;
             liveStats.inputTokens += u.input_tokens || 0;
             liveStats.outputTokens += u.output_tokens || 0;
-            // Context % = latest turn's (input + output) / max context window
-            // input_tokens includes full conversation history for this turn
-            const turnTotal = (u.input_tokens || 0) + (u.output_tokens || 0);
+            // Context % = latest turn's total tokens / max context window
+            // Must include cached tokens since input_tokens only counts non-cached tokens
+            const cacheRead = u.cache_read_input_tokens || 0;
+            const cacheCreation = u.cache_creation_input_tokens || 0;
+            const turnTotal = (u.input_tokens || 0) + cacheRead + cacheCreation + (u.output_tokens || 0);
             liveStats.contextPercent = Math.min(100, (turnTotal / maxContextTokens) * 100);
             footer.setLiveStats(liveStats);
           }
@@ -171,7 +173,7 @@ export async function runClaudeIteration(
             liveStats.costUsd = costUsd;
             liveStats.inputTokens = tokenUsage?.inputTokens || 0;
             liveStats.outputTokens = tokenUsage?.outputTokens || 0;
-            const resultTotal = (tokenUsage?.inputTokens || 0) + (tokenUsage?.outputTokens || 0);
+            const resultTotal = (tokenUsage?.inputTokens || 0) + (tokenUsage?.cacheReadTokens || 0) + (tokenUsage?.cacheCreationTokens || 0) + (tokenUsage?.outputTokens || 0);
             liveStats.contextPercent = Math.min(100, (resultTotal / maxContextTokens) * 100);
             footer.setLiveStats(liveStats);
           }
