@@ -24,7 +24,7 @@ This is a hands-off task generation process. You'll explore the codebase, unders
 
 4. **Read additional context:**
    - Read `./simple-tasklist/NOTES.md` for techstack and preferences
-   - Read `./simple-tasklist/TASKS.md` to see what's been completed and what's in progress
+   - Read `./simple-tasklist/TASKS.md` to see what's been completed, what's in progress, and the backlog
    - Read `./simple-tasklist/manual-prompts/CLEAN_UP_TASKS.md` for task writing guidelines
 
 5. **Explore the codebase.** Use Grep and Glob extensively to:
