@@ -42,6 +42,7 @@ const program = new Command()
   .option("--mcp-inject <path>", "path to mcps.json file with injectable MCP servers")
   .option("--ide", "enable IDE integration", false)
   .option("--chrome", "enable Chrome browser integration", false)
+  .option("-d, --delay <seconds>", "delay in seconds between iterations", "0")
   .option("--no-interactive", "skip interactive prompts, use defaults for missing args")
   .parse(process.argv);
 
@@ -394,6 +395,16 @@ async function gatherConfig(): Promise<LoopConfig> {
           message: "Continue string (leave empty to skip)",
           initialValue: opts.continueString || "",
         }),
+      delaySeconds: () =>
+        p.text({
+          message: "Delay between iterations in seconds (0 = no delay)",
+          initialValue: String(opts.delay ?? "0"),
+          validate: (val) => {
+            const n = parseFloat(val || "");
+            if (isNaN(n) || n < 0) return "Must be a non-negative number";
+            return undefined;
+          },
+        }),
       logFile: () =>
         p.text({
           message: "Log file path (leave empty to skip)",
@@ -565,6 +576,7 @@ async function gatherConfig(): Promise<LoopConfig> {
     injectedMcps: selectedMcps,
     enableIde: enableIde as boolean,
     enableChrome: enableChrome as boolean,
+    delaySeconds: parseFloat(core.delaySeconds as string) || 0,
   };
 }
 
@@ -623,6 +635,7 @@ async function buildConfigFromOpts(): Promise<LoopConfig> {
     injectedMcps,
     enableIde: opts.ide ?? false,
     enableChrome: opts.chrome ?? false,
+    delaySeconds: parseFloat(opts.delay) || 0,
   };
 }
 
@@ -644,6 +657,7 @@ function buildRerunCommand(config: LoopConfig): string {
     parts.push("--enable-mcps", allNames.join(","));
   }
 
+  if (config.delaySeconds > 0) parts.push("-d", String(config.delaySeconds));
   if (config.enableIde) parts.push("--ide");
   if (config.enableChrome) parts.push("--chrome");
 
@@ -793,6 +807,12 @@ async function runLoop(config: LoopConfig): Promise<void> {
       footer.writeln(chalk.yellow(`  Claude exited with code ${result.exitCode}`));
       // Continue anyway - let the user's iteration count decide
     }
+
+    // Delay between iterations (skip after last iteration)
+    if (config.delaySeconds > 0 && i < maxIterations) {
+      footer.writeln(chalk.dim(`  Waiting ${config.delaySeconds}s before next iteration...`));
+      await Bun.sleep(config.delaySeconds * 1000);
+    }
   }
 
   if (!stopReason && maxIterations !== Infinity) {
@@ -847,6 +867,7 @@ async function main(): Promise<void> {
   if (config.model) console.log(`  Model:      ${config.model}`);
   if (config.stopString) console.log(`  Stop:       "${config.stopString}"`);
   if (config.continueString) console.log(`  Continue:   "${config.continueString}"`);
+  if (config.delaySeconds > 0) console.log(`  Delay:      ${config.delaySeconds}s between iterations`);
   if (config.logFile) console.log(`  Log file:   ${config.logFile}`);
   if (config.injectedMcps.length > 0) {
     const mcpNames = config.injectedMcps.map((m) => m.name).join(", ");

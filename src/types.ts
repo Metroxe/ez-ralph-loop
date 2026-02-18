@@ -70,6 +70,8 @@ export interface LoopConfig {
   enableIde?: boolean;
   /** Enable Chrome integration (--chrome flag to Claude) */
   enableChrome?: boolean;
+  /** Delay in seconds between iterations (0 = no delay) */
+  delaySeconds: number;
 }
 
 /**
