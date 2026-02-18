@@ -31,6 +31,17 @@ ASSET_NAME="${BIN_NAME}-${TARGET}"
 
 echo "Detected platform: ${TARGET}"
 
+# Determine install directory
+if [ -n "${CIG_INSTALL_DIR:-}" ]; then
+  INSTALL_DIR="$CIG_INSTALL_DIR"
+elif [ -w "/usr/local/bin" ]; then
+  INSTALL_DIR="/usr/local/bin"
+else
+  INSTALL_DIR="${HOME}/.local/bin"
+fi
+
+mkdir -p "$INSTALL_DIR"
+
 # Get latest release tag from GitHub API
 echo "Fetching latest release..."
 RELEASE_JSON="$(curl -fsSL "https://api.github.com/repos/${REPO}/releases/latest")"
@@ -43,8 +54,10 @@ fi
 
 echo "Latest version: ${TAG}"
 
+INSTALL_PATH="${INSTALL_DIR}/${BIN_NAME}"
+
 # Check if already installed
-if [ -f "./${BIN_NAME}" ]; then
+if [ -f "$INSTALL_PATH" ]; then
   echo "Existing installation found. Upgrading to ${TAG}..."
 else
   echo "Installing ${BIN_NAME} ${TAG}..."
@@ -53,10 +66,29 @@ fi
 # Download the binary
 DOWNLOAD_URL="https://github.com/${REPO}/releases/download/${TAG}/${ASSET_NAME}"
 echo "Downloading from ${DOWNLOAD_URL}..."
-curl -f#L -o "./${BIN_NAME}" "$DOWNLOAD_URL"
+curl -f#L -o "$INSTALL_PATH" "$DOWNLOAD_URL"
 
 # Make executable
-chmod +x "./${BIN_NAME}"
+chmod +x "$INSTALL_PATH"
 
 echo ""
-echo "${BIN_NAME} ${TAG} installed successfully to ./${BIN_NAME}"
+echo "${BIN_NAME} ${TAG} installed successfully to ${INSTALL_PATH}"
+
+# Check if install directory is on PATH
+case ":${PATH}:" in
+  *":${INSTALL_DIR}:"*) ;;
+  *)
+    echo ""
+    echo "WARNING: ${INSTALL_DIR} is not in your PATH."
+    echo "Add it by running:"
+    echo ""
+    SHELL_NAME="$(basename "$SHELL")"
+    case "$SHELL_NAME" in
+      zsh)  SHELL_RC="~/.zshrc" ;;
+      fish) SHELL_RC="~/.config/fish/config.fish" ;;
+      *)    SHELL_RC="~/.bashrc" ;;
+    esac
+    echo "  echo 'export PATH=\"${INSTALL_DIR}:\$PATH\"' >> ${SHELL_RC} && source ${SHELL_RC}"
+    echo ""
+    ;;
+esac

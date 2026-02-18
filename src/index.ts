@@ -25,6 +25,12 @@ if (process.argv[2] === "boilerplate") {
   process.exit(0);
 }
 
+if (process.argv[2] === "update") {
+  const { runUpdate } = await import("./update.js");
+  await runUpdate();
+  process.exit(0);
+}
+
 // ─── CLI Arg Parsing ───────────────────────────────────────────────────
 
 const program = new Command()
