@@ -12,10 +12,11 @@ const targets = [
 const entrypoint = "./src/index.ts";
 const outDir = "./dist";
 const binName = "cig-loop";
+const version = process.env.VERSION || "dev";
 
 await mkdir(outDir, { recursive: true });
 
-console.log(`Building ${binName} for ${targets.length} targets...\n`);
+console.log(`Building ${binName} v${version} for ${targets.length} targets...\n`);
 
 for (const target of targets) {
   const outfile = `${outDir}/${binName}-${target.name}`;
@@ -23,7 +24,7 @@ for (const target of targets) {
   console.log(`  ${target.label} (bun-${target.name})`);
 
   try {
-    await $`bun build ${entrypoint} --compile --target=bun-${target.name} --outfile ${outfile}`.quiet();
+    await $`bun build ${entrypoint} --compile --target=bun-${target.name} --outfile ${outfile} --define BUILD_VERSION='"${version}"'`.quiet();
     console.log(`    -> ${outfile}\n`);
   } catch (err) {
     console.error(`    !! Failed to build for ${target.label}\n`);

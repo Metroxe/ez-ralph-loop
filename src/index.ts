@@ -15,6 +15,7 @@ import { runClaudeIteration } from "./claude.js";
 import { formatCost, formatDuration, formatNumber } from "./format.js";
 import { StickyFooter } from "./terminal.js";
 import { BUILTIN_MCPS, getMissingEnvVars } from "./mcps.js";
+import { VERSION, checkForUpdate } from "./version.js";
 import type { CumulativeStats, InjectableMcp, IterationResult, LoopConfig, McpInjectFile, McpServerInfo } from "./types.js";
 
 // ─── Subcommand Routing ────────────────────────────────────────────────
@@ -36,7 +37,7 @@ if (process.argv[2] === "update") {
 const program = new Command()
   .name("cig-loop")
   .description("Run a cig loop - repeatedly invoke Claude Code with a prompt file")
-  .version("1.0.0")
+  .version(VERSION)
   .option("-p, --prompt <path>", "path to prompt file", "./PROMPT.md")
   .option("-i, --iterations <number>", "number of iterations (0 = infinite)", "10")
   .option("-m, --model <model>", "Claude model to use")
@@ -861,10 +862,29 @@ function printFinalSummary(
 // ─── Main ──────────────────────────────────────────────────────────────
 
 async function main(): Promise<void> {
+  // Fire off update check in background (non-blocking)
+  const updateCheckPromise = checkForUpdate();
+
   const config = await gatherConfig();
 
   // Validate
   await validateConfig(config);
+
+  // Show version
+  console.log(chalk.bold(`cig-loop v${VERSION}`));
+  console.log("");
+
+  // Show update notice if a newer version is available
+  const newerVersion = await updateCheckPromise;
+  if (newerVersion) {
+    console.log(
+      chalk.yellow(`  Update available: v${VERSION} → v${newerVersion}`),
+    );
+    console.log(
+      chalk.yellow(`  Run ${chalk.bold("cig-loop update")} to upgrade`),
+    );
+    console.log("");
+  }
 
   // Show config summary
   console.log(chalk.bold("Configuration:"));

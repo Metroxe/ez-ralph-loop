@@ -1,5 +1,6 @@
 import chalk from "chalk";
 import { stat, chmod, rename, readFile } from "node:fs/promises";
+import { VERSION } from "./version.js";
 
 const REPO = "Metroxe/cig-loop";
 const BIN_NAME = "cig-loop";
@@ -28,6 +29,7 @@ export async function runUpdate() {
   const execPath = process.execPath;
 
   console.log(chalk.bold("cig-loop update"));
+  console.log(`  Current:  v${VERSION}`);
   console.log(`  Platform: ${platform}`);
   console.log(`  Binary:   ${execPath}`);
   console.log();
@@ -42,9 +44,16 @@ export async function runUpdate() {
 
   const release = (await res.json()) as { tag_name: string; assets: { name: string; browser_download_url: string }[] };
   const tag = release.tag_name;
+  const latestVersion = tag.replace(/^v/, "");
 
-  console.log(`  Latest version: ${tag}`);
+  console.log(`  Latest:   ${tag}`);
   console.log();
+
+  // Skip if already on latest
+  if (VERSION !== "dev" && VERSION === latestVersion) {
+    console.log(chalk.green("Already up to date."));
+    return;
+  }
 
   // Find the matching asset
   const asset = release.assets.find((a) => a.name === assetName);
