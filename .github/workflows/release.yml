@@ -73,3 +73,4 @@ jobs:
             dist/cig-loop-darwin-x64
             dist/cig-loop-linux-arm64
             dist/cig-loop-linux-x64
+            dist/cig-loop-linux-x64-baseline

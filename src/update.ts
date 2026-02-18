@@ -1,17 +1,29 @@
 import chalk from "chalk";
-import { stat, chmod, rename } from "node:fs/promises";
+import { stat, chmod, rename, readFile } from "node:fs/promises";
 
 const REPO = "Metroxe/cig-loop";
 const BIN_NAME = "cig-loop";
 
-function detectPlatform(): string {
+async function needsBaseline(): Promise<boolean> {
+  if (process.platform !== "linux" || process.arch !== "x64") return false;
+  try {
+    const cpuinfo = await readFile("/proc/cpuinfo", "utf-8");
+    return !cpuinfo.includes("avx2");
+  } catch {
+    return false;
+  }
+}
+
+async function detectPlatform(): Promise<string> {
   const os = process.platform === "darwin" ? "darwin" : "linux";
   const arch = process.arch === "arm64" ? "arm64" : "x64";
-  return `${os}-${arch}`;
+  const base = `${os}-${arch}`;
+  if (await needsBaseline()) return `${base}-baseline`;
+  return base;
 }
 
 export async function runUpdate() {
-  const platform = detectPlatform();
+  const platform = await detectPlatform();
   const assetName = `${BIN_NAME}-${platform}`;
   const execPath = process.execPath;
 

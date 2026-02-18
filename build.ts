@@ -6,6 +6,7 @@ const targets = [
   { name: "darwin-x64", label: "macOS (Intel)" },
   { name: "linux-arm64", label: "Linux (ARM64)" },
   { name: "linux-x64", label: "Linux (x86_64)" },
+  { name: "linux-x64-baseline", label: "Linux (x86_64 baseline, no AVX2)" },
 ];
 
 const entrypoint = "./src/index.ts";

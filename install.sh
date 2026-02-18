@@ -27,9 +27,20 @@ case "$ARCH" in
 esac
 
 TARGET="${os}-${arch}"
-ASSET_NAME="${BIN_NAME}-${TARGET}"
 
-echo "Detected platform: ${TARGET}"
+# On Linux x86_64, check for AVX2 support — use baseline binary if missing
+if [ "$os" = "linux" ] && [ "$arch" = "x64" ]; then
+  if ! grep -q avx2 /proc/cpuinfo 2>/dev/null; then
+    TARGET="${TARGET}-baseline"
+    echo "Detected platform: ${os}-${arch} (baseline — no AVX2)"
+  else
+    echo "Detected platform: ${TARGET}"
+  fi
+else
+  echo "Detected platform: ${TARGET}"
+fi
+
+ASSET_NAME="${BIN_NAME}-${TARGET}"
 
 # Determine install directory
 if [ -n "${CIG_INSTALL_DIR:-}" ]; then
