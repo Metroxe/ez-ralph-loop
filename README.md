@@ -1,7 +1,7 @@
-<p align="left">
-  <img src="logo.jpg" alt="Cig Loop" width="200" />
-</p>
+![Cig Loop](logo.jpg)
 
+
+# Cig Loop
 **Cig Loop** is a ralph loop library for Claude Code. Skips the setup, gives you boilerplates, and adds quality-of-life so you can focus on your prompt.
 
 We measure costs in cigarettes. A cigarette burns at roughly the same speed Opus tokens stream, and costs about the same per minute. So we track time in cigs and costs in packs.
