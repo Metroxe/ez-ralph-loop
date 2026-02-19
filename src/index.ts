@@ -44,6 +44,7 @@ const program = new Command()
   .option("--stop-string <string>", "stop loop when this string is detected in output")
   .option("--continue-string <string>", "continue only if this string is detected in output")
   .option("--log-file <path>", "log all output to this file")
+  .option("--max-log-lines <number>", "max lines to keep in log file (0 = unlimited)", "0")
   .option("-v, --verbose", "show raw JSON events", false)
   .option("--enable-mcps [servers]", "enable MCP servers: 'all' or comma-separated names (default: none)")
   .option("--mcp-inject <path>", "path to mcps.json file with injectable MCP servers")
@@ -579,6 +580,7 @@ async function gatherConfig(): Promise<LoopConfig> {
     stopString: (core.stopString as string).trim() || undefined,
     continueString: (core.continueString as string).trim() || undefined,
     logFile: (core.logFile as string).trim() || undefined,
+    maxLogLines: parseInt(opts.maxLogLines, 10) || 0,
     verbose: opts.verbose ?? false,
     injectedMcps: selectedMcps,
     enableIde: enableIde as boolean,
@@ -638,6 +640,7 @@ async function buildConfigFromOpts(): Promise<LoopConfig> {
     stopString: opts.stopString || undefined,
     continueString: opts.continueString || undefined,
     logFile: opts.logFile || undefined,
+    maxLogLines: parseInt(opts.maxLogLines, 10) || 0,
     verbose: opts.verbose ?? false,
     injectedMcps,
     enableIde: opts.ide ?? false,
@@ -656,6 +659,7 @@ function buildRerunCommand(config: LoopConfig): string {
   if (config.stopString) parts.push("--stop-string", JSON.stringify(config.stopString));
   if (config.continueString) parts.push("--continue-string", JSON.stringify(config.continueString));
   if (config.logFile) parts.push("--log-file", JSON.stringify(config.logFile));
+  if (config.maxLogLines > 0) parts.push("--max-log-lines", String(config.maxLogLines));
   if (config.verbose) parts.push("-v");
 
   if (config.injectedMcps.length > 0) {
@@ -715,7 +719,7 @@ async function validateConfig(config: LoopConfig): Promise<void> {
 // ─── Cig Loop ──────────────────────────────────────────────────────────
 
 async function runLoop(config: LoopConfig): Promise<void> {
-  const footer = new StickyFooter(config.logFile);
+  const footer = new StickyFooter(config.logFile, config.maxLogLines);
   const cumulative: CumulativeStats = {
     completedIterations: 0,
     totalDurationMs: 0,
@@ -815,6 +819,9 @@ async function runLoop(config: LoopConfig): Promise<void> {
       // Continue anyway - let the user's iteration count decide
     }
 
+    // Trim log if over the line limit
+    await footer.flushAndTrimLog();
+
     // Delay between iterations (skip after last iteration)
     if (config.delaySeconds > 0 && i < maxIterations) {
       footer.writeln(chalk.dim(`  Waiting ${config.delaySeconds}s before next iteration...`));
@@ -894,7 +901,12 @@ async function main(): Promise<void> {
   if (config.stopString) console.log(`  Stop:       "${config.stopString}"`);
   if (config.continueString) console.log(`  Continue:   "${config.continueString}"`);
   if (config.delaySeconds > 0) console.log(`  Delay:      ${config.delaySeconds}s between iterations`);
-  if (config.logFile) console.log(`  Log file:   ${config.logFile}`);
+  if (config.logFile) {
+    const logDetails = config.maxLogLines > 0
+      ? `${config.logFile} (rolling, max ${config.maxLogLines} lines)`
+      : config.logFile;
+    console.log(`  Log file:   ${logDetails}`);
+  }
   if (config.injectedMcps.length > 0) {
     const mcpNames = config.injectedMcps.map((m) => m.name).join(", ");
     console.log(`  MCPs:       ${mcpNames}`);

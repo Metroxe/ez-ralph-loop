@@ -446,7 +446,7 @@ function truncate(str: string, max: number): string {
 /**
  * Strip ANSI escape codes from a string to get visible text length.
  */
-function stripAnsi(str: string): string {
+export function stripAnsi(str: string): string {
   // eslint-disable-next-line no-control-regex
   return str.replace(/\x1b\[[\d;]*m/g, "");
 }

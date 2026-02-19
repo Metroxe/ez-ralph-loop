@@ -62,6 +62,8 @@ export interface LoopConfig {
   continueString?: string;
   /** Path to log file (undefined = no logging) */
   logFile?: string;
+  /** Maximum number of lines to keep in the log file (0 = unlimited) */
+  maxLogLines: number;
   /** Show raw JSON events */
   verbose: boolean;
   /** All MCP servers to enable — passed via --mcp-config with --strict-mcp-config */

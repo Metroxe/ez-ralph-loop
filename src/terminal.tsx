@@ -9,7 +9,7 @@
 import React, { useState, useEffect, useSyncExternalStore } from "react";
 import { render, Box, Text, Static } from "ink";
 import chalk from "chalk";
-import { formatCost, formatDuration, formatNumber } from "./format.js";
+import { formatCost, formatDuration, formatNumber, stripAnsi } from "./format.js";
 import type { CumulativeStats, LiveIterationStats } from "./types.js";
 
 const orange = chalk.hex("#FF9500");
@@ -376,8 +376,13 @@ export class StickyFooter {
   private inkInstance: InkInstance | null = null;
   private logWriter: ReturnType<ReturnType<typeof Bun.file>["writer"]> | null =
     null;
+  private logFilePath: string | undefined;
+  private maxLogLines: number;
+  private logLineCount = 0;
 
-  constructor(logFilePath?: string) {
+  constructor(logFilePath?: string, maxLogLines = 0) {
+    this.logFilePath = logFilePath;
+    this.maxLogLines = maxLogLines;
     if (logFilePath) {
       this.logWriter = Bun.file(logFilePath).writer();
     }
@@ -399,7 +404,12 @@ export class StickyFooter {
 
   write(text: string, style?: "orange"): void {
     if (this.logWriter) {
-      this.logWriter.write(text);
+      const clean = stripAnsi(text);
+      this.logWriter.write(clean);
+      // Track newlines for rolling log
+      for (let i = 0; i < clean.length; i++) {
+        if (clean[i] === "\n") this.logLineCount++;
+      }
     }
 
     if (this.inkInstance) {
@@ -434,10 +444,46 @@ export class StickyFooter {
     return this.store.getSnapshot().cumulative;
   }
 
+  /**
+   * Flush the log writer and trim if over the line limit.
+   * Safe to call mid-run — reopens the writer after trimming.
+   */
+  async flushAndTrimLog(): Promise<void> {
+    if (!this.logWriter || !this.logFilePath || this.maxLogLines <= 0) return;
+    if (this.logLineCount <= this.maxLogLines) return;
+
+    await this.logWriter.flush();
+    await this.logWriter.end();
+    this.logWriter = null;
+
+    await this.trimLog();
+
+    // Reopen writer in append mode
+    this.logWriter = Bun.file(this.logFilePath).writer();
+  }
+
+  /**
+   * Trim the log file to the most recent maxLogLines lines.
+   * Called after flushing the writer so the file is complete on disk.
+   */
+  private async trimLog(): Promise<void> {
+    if (!this.logFilePath || this.maxLogLines <= 0) return;
+    if (this.logLineCount <= this.maxLogLines) return;
+
+    const content = await Bun.file(this.logFilePath).text();
+    const lines = content.split("\n");
+    // Keep the last maxLogLines lines (plus trailing empty if present)
+    const trimmed = lines.slice(-this.maxLogLines);
+    await Bun.write(this.logFilePath, trimmed.join("\n"));
+    this.logLineCount = trimmed.length;
+  }
+
   async closeLog(): Promise<void> {
     if (this.logWriter) {
       await this.logWriter.flush();
       await this.logWriter.end();
+      this.logWriter = null;
+      await this.trimLog();
     }
   }
 }
