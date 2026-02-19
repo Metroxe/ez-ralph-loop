@@ -367,6 +367,33 @@ function App({ store }: { store: TerminalStore }) {
   );
 }
 
+// ─── tmux stdout wrapper ──────────────────────────────────────────────
+
+// Ink 6.7+ wraps renders in BSU/ESU (Begin/End Synchronized Update)
+// escape sequences. tmux can mishandle these, causing garbled output.
+// Detect tmux and strip the sequences before they reach the terminal.
+const BSU = "\x1b[?2026h";
+const ESU = "\x1b[?2026l";
+const isTmux = !!(process.env.TMUX || process.env.TERM?.startsWith("tmux"));
+
+function getTmuxSafeStdout(): NodeJS.WriteStream {
+  if (!isTmux) return process.stdout;
+
+  return new Proxy(process.stdout, {
+    get(target, prop, receiver) {
+      if (prop === "write") {
+        return function (chunk: any, ...args: any[]) {
+          if (typeof chunk === "string") {
+            chunk = chunk.replaceAll(BSU, "").replaceAll(ESU, "");
+          }
+          return target.write(chunk, ...args);
+        };
+      }
+      return Reflect.get(target, prop, receiver);
+    },
+  });
+}
+
 // ─── StickyFooter (imperative API) ────────────────────────────────────
 
 type InkInstance = ReturnType<typeof render>;
@@ -390,8 +417,10 @@ export class StickyFooter {
 
   activate(): void {
     this.inkInstance = render(<App store={this.store} />, {
+      stdout: getTmuxSafeStdout(),
       exitOnCtrlC: false,
       patchConsole: false,
+      incrementalRendering: true,
     });
   }
 
