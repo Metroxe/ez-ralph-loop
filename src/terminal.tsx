@@ -190,12 +190,16 @@ function SmokingCigarette() {
     return (
       <box flexDirection="column" marginLeft={2}>
         {Array.from({ length: SMOKE_HEIGHT - 1 }, (_, i) => (
-          <text key={i} content=" " />
+          <text key={i}>
+            <span>{" "}</span>
+          </text>
         ))}
         <text>
           <span attributes={TextAttributes.DIM}>{" ".repeat(gapPad) + gapCountStr}</span>
         </text>
-        <text content=" " />
+        <text>
+          <span>{" "}</span>
+        </text>
       </box>
     );
   }
@@ -348,7 +352,7 @@ function Footer({
             <span attributes={TextAttributes.DIM}>{" Usage: https://claude.ai/settings/usage"}</span>
           </text>
         </box>
-        {!isWide && <text content=" " />}
+        {!isWide && <text><span>{" "}</span></text>}
         <SmokingCigarette />
       </box>
     </box>
