@@ -33,7 +33,6 @@ interface StoreState {
   currentLineStyle?: "orange";
   liveStats: LiveIterationStats | null;
   cumulative: CumulativeStats;
-  rerunCommand: string | null;
 }
 
 class TerminalStore {
@@ -53,7 +52,6 @@ class TerminalStore {
         totalInputTokens: 0,
         totalOutputTokens: 0,
       },
-      rerunCommand: null,
     };
   }
 
@@ -122,10 +120,6 @@ class TerminalStore {
     this.emit();
   }
 
-  setRerunCommand(cmd: string): void {
-    this.state.rerunCommand = cmd;
-    this.emit();
-  }
 }
 
 // ─── Progress Bar ─────────────────────────────────────────────────────
@@ -287,11 +281,9 @@ function SmokingCigarette() {
 function Footer({
   liveStats,
   cumulative,
-  rerunCommand,
 }: {
   liveStats: LiveIterationStats | null;
   cumulative: CumulativeStats;
-  rerunCommand: string | null;
 }) {
   const [now, setNow] = useState(Date.now());
   const { width: cols } = useTerminalDimensions();
@@ -355,11 +347,6 @@ function Footer({
           <text>
             <span attributes={TextAttributes.DIM}>{" Usage: https://claude.ai/settings/usage"}</span>
           </text>
-          {rerunCommand ? (
-            <text>
-              <span fg="#FF00FF">{` ▸ Rerun:    ${rerunCommand}`}</span>
-            </text>
-          ) : null}
         </box>
         {!isWide && <text content=" " />}
         <SmokingCigarette />
@@ -396,7 +383,7 @@ function App({ store }: { store: TerminalStore }) {
           </text>
         ) : null}
       </scrollbox>
-      <Footer liveStats={state.liveStats} cumulative={state.cumulative} rerunCommand={state.rerunCommand} />
+      <Footer liveStats={state.liveStats} cumulative={state.cumulative} />
     </box>
   );
 }
@@ -475,10 +462,6 @@ export class StickyFooter {
 
   setCumulative(stats: CumulativeStats): void {
     this.store.setCumulative(stats);
-  }
-
-  setRerunCommand(cmd: string): void {
-    this.store.setRerunCommand(cmd);
   }
 
   getCumulative(): CumulativeStats {

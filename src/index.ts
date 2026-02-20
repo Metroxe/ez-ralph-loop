@@ -731,7 +731,7 @@ async function runLoop(config: LoopConfig): Promise<void> {
   // Handle Ctrl+C gracefully
   const cleanup = () => {
     footer.deactivate();
-    printFinalSummary(cumulative, config, "interrupted");
+    printFinalSummary(cumulative, config, "user interrupted (Ctrl+C)");
     footer.closeLog();
     process.exit(0);
   };
@@ -739,7 +739,6 @@ async function runLoop(config: LoopConfig): Promise<void> {
   process.on("SIGTERM", cleanup);
 
   await footer.activate();
-  footer.setRerunCommand(buildRerunCommand(config));
 
   const maxIterations = config.iterations === 0 ? Infinity : config.iterations;
   let stopReason: string | undefined;
@@ -761,8 +760,9 @@ async function runLoop(config: LoopConfig): Promise<void> {
     try {
       result = await runClaudeIteration(config, i, footer);
     } catch (err) {
-      footer.writeln(chalk.red(`\nFatal error in iteration ${i}: ${err}`));
-      stopReason = `fatal error on iteration ${i}`;
+      const errMsg = err instanceof Error ? err.message : String(err);
+      footer.writeln(chalk.red(`\nFatal error in iteration ${i}: ${errMsg}`));
+      stopReason = `fatal error on iteration ${i}: ${errMsg}`;
       break;
     }
 
@@ -851,9 +851,14 @@ function printFinalSummary(
   stopReason: string,
 ): void {
   const cols = process.stdout.columns || 80;
+  const isFatal = stopReason.startsWith("fatal error");
+  const isInterrupted = stopReason.startsWith("user interrupted");
+  const color = isFatal ? chalk.red : isInterrupted ? chalk.yellow : chalk.green;
+  const icon = isFatal ? "✗" : isInterrupted ? "⚠" : "✓";
+
   console.log("");
-  console.log(chalk.green("━".repeat(cols)));
-  console.log(chalk.bold.green("  ✓ Cig Loop Complete"));
+  console.log(color("━".repeat(cols)));
+  console.log(chalk.bold(color(`  ${icon} Cig Loop Complete`)));
   console.log("");
   const totalLabel = config.iterations === 0
     ? `${cumulative.completedIterations} (infinite mode)`
@@ -862,7 +867,9 @@ function printFinalSummary(
   console.log(`  Duration:    ${formatDuration(cumulative.totalDurationMs)}`);
   console.log(`  Cost:        ${formatCost(cumulative.totalCostUsd)}`);
   console.log(`  Tokens:      ${formatNumber(cumulative.totalInputTokens)} in / ${formatNumber(cumulative.totalOutputTokens)} out`);
-  console.log(`  Stopped:     ${chalk.dim(stopReason)}`);
+  console.log(`  Reason:      ${color(stopReason)}`);
+  console.log("");
+  console.log(`  ${chalk.dim("Rerun:")}     ${chalk.magenta(buildRerunCommand(config))}`);
   console.log("");
 }
 
