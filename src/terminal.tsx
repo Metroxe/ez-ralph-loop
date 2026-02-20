@@ -275,7 +275,7 @@ function SmokingCigarette() {
         )}
         {paperLen > 0 ? (
           <span fg="#F0E8D8">{"▓".repeat(paperLen)}</span>
-        ) : null}
+        ) : ""}
         <span fg="#CD853F">{"▒".repeat(7)}</span>
       </text>
     </box>
