@@ -728,6 +728,13 @@ async function runLoop(config: LoopConfig): Promise<void> {
     totalOutputTokens: 0,
   };
 
+  // Ensure terminal is restored on any exit path (crash, uncaught exception, etc.)
+  // This is a safety net — deactivate() is idempotent so double-calls are fine.
+  const emergencyCleanup = () => {
+    footer.deactivate();
+  };
+  process.on("exit", emergencyCleanup);
+
   // Handle Ctrl+C gracefully
   const cleanup = () => {
     footer.deactivate();
@@ -737,6 +744,17 @@ async function runLoop(config: LoopConfig): Promise<void> {
   };
   process.on("SIGINT", cleanup);
   process.on("SIGTERM", cleanup);
+
+  // Handle uncaught errors — restore terminal before crashing
+  const crashCleanup = (err: unknown) => {
+    footer.deactivate();
+    printFinalSummary(cumulative, config, "crash");
+    footer.closeLog();
+    console.error(err);
+    process.exit(1);
+  };
+  process.on("uncaughtException", crashCleanup);
+  process.on("unhandledRejection", crashCleanup);
 
   await footer.activate();
 
@@ -837,6 +855,9 @@ async function runLoop(config: LoopConfig): Promise<void> {
 
   process.removeListener("SIGINT", cleanup);
   process.removeListener("SIGTERM", cleanup);
+  process.removeListener("exit", emergencyCleanup);
+  process.removeListener("uncaughtException", crashCleanup);
+  process.removeListener("unhandledRejection", crashCleanup);
 
   printFinalSummary(cumulative, config, stopReason || "loop finished");
 
