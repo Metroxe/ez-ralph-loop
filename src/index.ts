@@ -575,6 +575,65 @@ async function gatherConfig(): Promise<LoopConfig> {
     process.exit(0);
   }
 
+  // Phase 4: Throttle settings
+  const wantThrottle = await p.confirm({
+    message: "Enable usage throttling? (pause loop when nearing rate limits)",
+    initialValue: false,
+  });
+  if (p.isCancel(wantThrottle)) {
+    p.cancel("Cancelled.");
+    process.exit(0);
+  }
+
+  let throttle: ThrottleConfig = { fiveHour: 0, sevenDay: 0, sonnet: 0 };
+  if (wantThrottle) {
+    const throttleInputs = await p.group(
+      {
+        fiveHour: () =>
+          p.text({
+            message: "5h usage threshold % (0 = off)",
+            initialValue: "90",
+            validate: (val) => {
+              const n = parseInt(val || "", 10);
+              if (isNaN(n) || n < 0 || n > 100) return "Must be 0-100";
+              return undefined;
+            },
+          }),
+        sevenDay: () =>
+          p.text({
+            message: "7d usage threshold % (0 = off)",
+            initialValue: "80",
+            validate: (val) => {
+              const n = parseInt(val || "", 10);
+              if (isNaN(n) || n < 0 || n > 100) return "Must be 0-100";
+              return undefined;
+            },
+          }),
+        sonnet: () =>
+          p.text({
+            message: "Sonnet/Opus usage threshold % (0 = off)",
+            initialValue: "80",
+            validate: (val) => {
+              const n = parseInt(val || "", 10);
+              if (isNaN(n) || n < 0 || n > 100) return "Must be 0-100";
+              return undefined;
+            },
+          }),
+      },
+      {
+        onCancel: () => {
+          p.cancel("Cancelled.");
+          process.exit(0);
+        },
+      },
+    );
+    throttle = {
+      fiveHour: parseInt(throttleInputs.fiveHour as string, 10) || 0,
+      sevenDay: parseInt(throttleInputs.sevenDay as string, 10) || 0,
+      sonnet: parseInt(throttleInputs.sonnet as string, 10) || 0,
+    };
+  }
+
   p.outro(chalk.dim("Configuration complete."));
 
   return {
@@ -590,11 +649,7 @@ async function gatherConfig(): Promise<LoopConfig> {
     enableIde: enableIde as boolean,
     enableChrome: enableChrome as boolean,
     delaySeconds: parseFloat(core.delaySeconds as string) || 0,
-    throttle: {
-      fiveHour: parseInt(opts.throttle5h, 10) || 0,
-      sevenDay: parseInt(opts.throttle7d, 10) || 0,
-      sonnet: parseInt(opts.throttleSonnet, 10) || 0,
-    },
+    throttle,
   };
 }
 
