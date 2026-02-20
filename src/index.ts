@@ -748,9 +748,9 @@ async function runLoop(config: LoopConfig): Promise<void> {
   // Handle uncaught errors — restore terminal before crashing
   const crashCleanup = (err: unknown) => {
     footer.deactivate();
-    printFinalSummary(cumulative, config, "crash");
+    const errMsg = err instanceof Error ? err.message : String(err);
+    printFinalSummary(cumulative, config, `fatal error: ${errMsg}`);
     footer.closeLog();
-    console.error(err);
     process.exit(1);
   };
   process.on("uncaughtException", crashCleanup);
