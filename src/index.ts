@@ -735,8 +735,12 @@ async function runLoop(config: LoopConfig): Promise<void> {
   };
   process.on("exit", emergencyCleanup);
 
+  // AbortController to kill the active Claude subprocess on cleanup
+  const abortController = new AbortController();
+
   // Handle Ctrl+C gracefully
   const cleanup = () => {
+    abortController.abort();
     footer.deactivate();
     printFinalSummary(cumulative, config, "user interrupted (Ctrl+C)");
     footer.closeLog();
@@ -747,6 +751,7 @@ async function runLoop(config: LoopConfig): Promise<void> {
 
   // Handle uncaught errors — restore terminal before crashing
   const crashCleanup = (err: unknown) => {
+    abortController.abort();
     footer.deactivate();
     const errMsg = err instanceof Error ? err.message : String(err);
     printFinalSummary(cumulative, config, `fatal error: ${errMsg}`);
@@ -776,7 +781,7 @@ async function runLoop(config: LoopConfig): Promise<void> {
     // Run Claude
     let result: IterationResult;
     try {
-      result = await runClaudeIteration(config, i, footer);
+      result = await runClaudeIteration(config, i, footer, abortController.signal);
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : String(err);
       footer.writeln(chalk.red(`\nFatal error in iteration ${i}: ${errMsg}`));

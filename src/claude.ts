@@ -27,6 +27,7 @@ export async function runClaudeIteration(
   config: LoopConfig,
   iteration: number,
   footer: StickyFooter,
+  signal?: AbortSignal,
 ): Promise<IterationResult> {
   const startTime = Date.now();
 
@@ -91,6 +92,13 @@ export async function runClaudeIteration(
     stderr: "pipe",
     stdin: "ignore",
   });
+
+  // Kill the subprocess if the caller aborts (e.g. Ctrl+C)
+  if (signal) {
+    const onAbort = () => proc.kill("SIGTERM");
+    signal.addEventListener("abort", onAbort, { once: true });
+    proc.exited.then(() => signal.removeEventListener("abort", onAbort));
+  }
 
   let output = "";
   let tokenUsage: TokenUsage | undefined;
