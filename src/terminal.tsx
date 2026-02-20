@@ -1,15 +1,20 @@
 /**
- * Terminal UI using Ink (React for CLIs).
+ * Terminal UI using OpenTUI (cell-based TUI framework).
  *
- * Replaces raw ANSI escape sequences with Ink's layout engine.
+ * Uses OpenTUI's React reconciler with absolute-position cell diffing,
+ * which avoids the eraseLines / line-count mismatch issues that Ink
+ * has in tmux.
+ *
  * The StickyFooter class provides the same imperative API as before,
- * backed by a React component tree that Ink manages.
+ * backed by a React component tree that OpenTUI manages.
  */
 
-import React, { useState, useEffect, useSyncExternalStore } from "react";
-import { render, Box, Text, Static } from "ink";
+import { createCliRenderer, type CliRenderer, TextAttributes } from "@opentui/core";
+import { createRoot, useTerminalDimensions, type Root } from "@opentui/react";
+import { useState, useEffect, useSyncExternalStore } from "react";
 import chalk from "chalk";
 import { formatCost, formatDuration, formatNumber, stripAnsi } from "./format.js";
+import { AnsiText } from "./ansi.js";
 import type { CumulativeStats, LiveIterationStats } from "./types.js";
 
 const orange = chalk.hex("#FF9500");
@@ -87,8 +92,13 @@ class TerminalStore {
         currentLine = "";
         lineStyle = style; // subsequent lines use only this write's style
       } else {
-        currentLine = parts[i];
+        currentLine = parts[i]!;
       }
+    }
+
+    // Cap display lines at 5000 to keep scrollbox performant
+    if (newLines.length > 5000) {
+      newLines.splice(0, newLines.length - 5000);
     }
 
     this.state.lines = newLines;
@@ -184,13 +194,15 @@ function SmokingCigarette() {
     const gapCountStr = `${cigsSmoked}`;
     const gapPad = Math.max(1, gapFilterEnd - gapCountStr.length);
     return (
-      <Box flexDirection="column" marginLeft={2}>
+      <box flexDirection="column" marginLeft={2}>
         {Array.from({ length: SMOKE_HEIGHT - 1 }, (_, i) => (
-          <Text key={i}>{" "}</Text>
+          <text key={i} content=" " />
         ))}
-        <Text dimColor>{" ".repeat(gapPad) + gapCountStr}</Text>
-        <Text>{" "}</Text>
-      </Box>
+        <text>
+          <span attributes={TextAttributes.DIM}>{" ".repeat(gapPad) + gapCountStr}</span>
+        </text>
+        <text content=" " />
+      </box>
     );
   }
 
@@ -244,29 +256,29 @@ function SmokingCigarette() {
   smokeLines[lastIdx] += " ".repeat(countPad) + countStr;
 
   return (
-    <Box flexDirection="column" marginLeft={2}>
+    <box flexDirection="column" marginLeft={2}>
       {smokeLines.map((line, i) => (
-        <Text key={i} dimColor>
-          {line}
-        </Text>
+        <text key={i}>
+          <span attributes={TextAttributes.DIM}>{line}</span>
+        </text>
       ))}
-      <Text>
+      <text>
         {" ".repeat(cigPad)}
         {isLighting ? (
-          <Text>🔥</Text>
+          <span>🔥</span>
         ) : isUnlit ? (
-          <Text color="#F0E8D8">{"▓▓"}</Text>
+          <span fg="#F0E8D8">{"▓▓"}</span>
         ) : (
-          <Text color="#FF6B35">
+          <span fg="#FF6B35">
             {EMBER_CYCLE[frame % EMBER_CYCLE.length]}
-          </Text>
+          </span>
         )}
         {paperLen > 0 ? (
-          <Text color="#F0E8D8">{"▓".repeat(paperLen)}</Text>
+          <span fg="#F0E8D8">{"▓".repeat(paperLen)}</span>
         ) : null}
-        <Text color="#CD853F">{"▒".repeat(7)}</Text>
-      </Text>
-    </Box>
+        <span fg="#CD853F">{"▒".repeat(7)}</span>
+      </text>
+    </box>
   );
 }
 
@@ -282,13 +294,12 @@ function Footer({
   rerunCommand: string | null;
 }) {
   const [now, setNow] = useState(Date.now());
+  const { width: cols } = useTerminalDimensions();
 
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(timer);
   }, []);
-
-  const cols = process.stdout.columns || 80;
 
   let line1: string;
   let line2: string;
@@ -323,23 +334,37 @@ function Footer({
   const isWide = cols >= 90;
 
   return (
-    <Box flexDirection="column">
-      <Text dimColor>{"━".repeat(cols)}</Text>
-      <Box
+    <box flexDirection="column" flexShrink={0}>
+      <text>
+        <span attributes={TextAttributes.DIM}>{"━".repeat(cols)}</span>
+      </text>
+      <box
         flexDirection={isWide ? "row" : "column"}
         alignItems={isWide ? "flex-start" : undefined}
       >
-        <Box flexDirection="column" flexGrow={1}>
-          <Text bold>{line1}</Text>
-          <Text color="cyan">{line2}</Text>
-          <Text color="yellow">{line3}</Text>
-          <Text dimColor>{" Usage: https://claude.ai/settings/usage"}</Text>
-          {rerunCommand ? <Text color="magenta">{` ▸ Rerun:    ${rerunCommand}`}</Text> : null}
-        </Box>
-        {!isWide && <Text>{" "}</Text>}
+        <box flexDirection="column" flexGrow={1}>
+          <text>
+            <b>{line1}</b>
+          </text>
+          <text>
+            <span fg="#5FAFAF">{line2}</span>
+          </text>
+          <text>
+            <span fg="#FFFF00">{line3}</span>
+          </text>
+          <text>
+            <span attributes={TextAttributes.DIM}>{" Usage: https://claude.ai/settings/usage"}</span>
+          </text>
+          {rerunCommand ? (
+            <text>
+              <span fg="#FF00FF">{` ▸ Rerun:    ${rerunCommand}`}</span>
+            </text>
+          ) : null}
+        </box>
+        {!isWide && <text content=" " />}
         <SmokingCigarette />
-      </Box>
-    </Box>
+      </box>
+    </box>
   );
 }
 
@@ -347,83 +372,41 @@ function Footer({
 
 function App({ store }: { store: TerminalStore }) {
   const state = useSyncExternalStore(store.subscribe, store.getSnapshot);
+  const { width, height } = useTerminalDimensions();
 
   return (
-    <Box flexDirection="column">
-      <Static items={state.lines}>
-        {(line) => (
-          <Text key={line.id} color={line.style === "orange" ? "#FF9500" : undefined}>
-            {line.text || " "}
-          </Text>
-        )}
-      </Static>
-      {state.currentLine ? (
-        <Text color={state.currentLineStyle === "orange" ? "#FF9500" : undefined}>
-          {state.currentLine}
-        </Text>
-      ) : null}
+    <box flexDirection="column" width={width} height={height}>
+      <scrollbox flexGrow={1} stickyScroll={true} stickyStart="bottom">
+        {state.lines.map((line) => (
+          <text key={line.id}>
+            {line.style === "orange" ? (
+              <span fg="#FF9500">{line.text || " "}</span>
+            ) : (
+              <AnsiText text={line.text || " "} />
+            )}
+          </text>
+        ))}
+        {state.currentLine ? (
+          <text>
+            {state.currentLineStyle === "orange" ? (
+              <span fg="#FF9500">{state.currentLine}</span>
+            ) : (
+              <AnsiText text={state.currentLine} />
+            )}
+          </text>
+        ) : null}
+      </scrollbox>
       <Footer liveStats={state.liveStats} cumulative={state.cumulative} rerunCommand={state.rerunCommand} />
-    </Box>
+    </box>
   );
-}
-
-// ─── tmux compatibility ──────────────────────────────────────────────
-
-// Ink 6.7+ wraps renders in BSU/ESU (Begin/End Synchronized Update)
-// escape sequences. tmux can mishandle these, causing garbled output.
-// Detect tmux and patch stdout.write directly to strip the sequences
-// before they reach the terminal.
-//
-// Additionally, Ink's eraseLines uses a precise line count based on
-// Yoga's layout calculations. When characters render at different
-// widths in tmux (e.g. box-drawing chars, exact-width lines causing
-// phantom newlines), the erase doesn't cover all rows, leaving ghost
-// lines. We fix this by replacing eraseLines sequences with cursor-up
-// + "clear to end of screen" (\x1b[J), which clears everything below
-// the cursor regardless of the actual row count.
-const BSU = "\x1b[?2026h";
-const ESU = "\x1b[?2026l";
-const isTmux = !!(process.env.TMUX || process.env.TERM?.startsWith("tmux"));
-
-// Matches Ink's eraseLines output: \x1b[2K (\x1b[1A\x1b[2K)* \x1b[G
-// Each \x1b[2K is one line erased. We count them to know how far up to go.
-const ERASE_LINES_RE = /\x1b\[2K(?:\x1b\[1A\x1b\[2K)*\x1b\[G/g;
-
-function replaceEraseWithClear(chunk: string): string {
-  return chunk.replace(ERASE_LINES_RE, (match) => {
-    // Count how many lines the original eraseLines covered
-    const lineCount = (match.match(/\x1b\[2K/g) || []).length;
-    if (lineCount <= 0) return match;
-    // Move cursor up (lineCount - 1) times, go to column 0, clear to
-    // end of screen. This erases the footer area AND any ghost rows
-    // from wrapping discrepancies.
-    const up = lineCount > 1 ? `\x1b[${lineCount - 1}A` : "";
-    return up + "\x1b[G\x1b[J";
-  });
-}
-
-if (isTmux) {
-  const _origWrite = process.stdout.write;
-  process.stdout.write = function (
-    this: NodeJS.WriteStream,
-    chunk: any,
-    ...args: any[]
-  ) {
-    if (typeof chunk === "string") {
-      chunk = chunk.replaceAll(BSU, "").replaceAll(ESU, "");
-      chunk = replaceEraseWithClear(chunk);
-    }
-    return _origWrite.apply(this, [chunk, ...args] as any);
-  } as typeof process.stdout.write;
 }
 
 // ─── StickyFooter (imperative API) ────────────────────────────────────
 
-type InkInstance = ReturnType<typeof render>;
-
 export class StickyFooter {
   private store = new TerminalStore();
-  private inkInstance: InkInstance | null = null;
+  private renderer: CliRenderer | null = null;
+  private root: Root | null = null;
   private logWriter: ReturnType<ReturnType<typeof Bun.file>["writer"]> | null =
     null;
   private logFilePath: string | undefined;
@@ -438,17 +421,25 @@ export class StickyFooter {
     }
   }
 
-  activate(): void {
-    this.inkInstance = render(<App store={this.store} />, {
+  async activate(): Promise<void> {
+    this.renderer = await createCliRenderer({
       exitOnCtrlC: false,
-      patchConsole: false,
+      useAlternateScreen: true,
+      useMouse: false,
+      autoFocus: false,
     });
+    this.root = createRoot(this.renderer);
+    this.root.render(<App store={this.store} />);
   }
 
   deactivate(): void {
-    if (this.inkInstance) {
-      this.inkInstance.unmount();
-      this.inkInstance = null;
+    if (this.root) {
+      this.root.unmount();
+      this.root = null;
+    }
+    if (this.renderer) {
+      this.renderer.destroy();
+      this.renderer = null;
     }
   }
 
@@ -462,10 +453,10 @@ export class StickyFooter {
       }
     }
 
-    if (this.inkInstance) {
+    if (this.renderer) {
       this.store.write(text, style);
     } else {
-      // Non-Ink fallback: apply color inline via ANSI codes
+      // Fallback: apply color inline via ANSI codes
       if (style === "orange") {
         process.stdout.write(text.replace(/[^\n]+/g, (m) => orange(m)));
       } else {

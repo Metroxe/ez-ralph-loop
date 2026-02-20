@@ -738,7 +738,7 @@ async function runLoop(config: LoopConfig): Promise<void> {
   process.on("SIGINT", cleanup);
   process.on("SIGTERM", cleanup);
 
-  footer.activate();
+  await footer.activate();
   footer.setRerunCommand(buildRerunCommand(config));
 
   const maxIterations = config.iterations === 0 ? Infinity : config.iterations;
@@ -752,8 +752,8 @@ async function runLoop(config: LoopConfig): Promise<void> {
 
     const cols = process.stdout.columns || 80;
     footer.writeln("");
-    footer.writeln(chalk.blue("─".repeat(cols)));
-    footer.writeln(chalk.bold.blue(`  ${iterLabel}`));
+    footer.writeln(chalk.hex("#5FAFAF")("─".repeat(cols)));
+    footer.writeln(chalk.bold.hex("#5FAFAF")(`  ${iterLabel}`));
     footer.writeln("");
 
     // Run Claude
