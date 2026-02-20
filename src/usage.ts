@@ -85,44 +85,24 @@ async function doFetch(): Promise<UsageData | null> {
   }
 }
 
+function parseBucket(raw: unknown): UsageBucket | null {
+  const b = raw as { utilization?: number; resets_at?: string } | null;
+  if (!b || typeof b.utilization !== "number") return null;
+  return {
+    utilization: Math.round(b.utilization),
+    resetsAt: b.resets_at || "",
+  };
+}
+
 function parseUsageResponse(data: unknown): UsageData {
-  const buckets = (data as { buckets?: unknown[] })?.buckets;
-  const result: UsageData = {
-    fiveHour: null,
-    sevenDay: null,
-    sevenDaySonnet: null,
-    sevenDayOpus: null,
+  const d = data as Record<string, unknown>;
+  return {
+    fiveHour: parseBucket(d.five_hour),
+    sevenDay: parseBucket(d.seven_day),
+    sevenDaySonnet: parseBucket(d.seven_day_sonnet),
+    sevenDayOpus: parseBucket(d.seven_day_opus),
     fetchedAt: Date.now(),
   };
-
-  if (!Array.isArray(buckets)) return result;
-
-  for (const bucket of buckets) {
-    const b = bucket as { type?: string; utilization?: number; resets_at?: string };
-    if (typeof b.type !== "string" || typeof b.utilization !== "number") continue;
-
-    const parsed: UsageBucket = {
-      utilization: Math.round(b.utilization * 100),
-      resetsAt: b.resets_at || "",
-    };
-
-    switch (b.type) {
-      case "five_hour":
-        result.fiveHour = parsed;
-        break;
-      case "seven_day":
-        result.sevenDay = parsed;
-        break;
-      case "seven_day_sonnet":
-        result.sevenDaySonnet = parsed;
-        break;
-      case "seven_day_opus":
-        result.sevenDayOpus = parsed;
-        break;
-    }
-  }
-
-  return result;
 }
 
 // ─── Throttle Check ─────────────────────────────────────────────────────
