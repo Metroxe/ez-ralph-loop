@@ -834,7 +834,14 @@ async function runLoop(config: LoopConfig): Promise<void> {
     // Check non-zero exit code
     if (!result.success) {
       footer.writeln(chalk.yellow(`  Claude exited with code ${result.exitCode}`));
-      // Continue anyway - let the user's iteration count decide
+      // Fatal signals (SIGKILL=137, SIGTERM=143, etc.) should stop the loop
+      if (result.exitCode >= 128) {
+        const signal = result.exitCode - 128;
+        const signalName = { 9: "SIGKILL", 15: "SIGTERM", 11: "SIGSEGV", 6: "SIGABRT" }[signal] || `signal ${signal}`;
+        stopReason = `Claude killed by ${signalName} (exit code ${result.exitCode}) on iteration ${i}`;
+        footer.writeln(chalk.red(`  ${stopReason} - stopping loop`));
+        break;
+      }
     }
 
     // Trim log if over the line limit
