@@ -367,31 +367,29 @@ function App({ store }: { store: TerminalStore }) {
   );
 }
 
-// ─── tmux stdout wrapper ──────────────────────────────────────────────
+// ─── tmux compatibility ──────────────────────────────────────────────
 
 // Ink 6.7+ wraps renders in BSU/ESU (Begin/End Synchronized Update)
 // escape sequences. tmux can mishandle these, causing garbled output.
-// Detect tmux and strip the sequences before they reach the terminal.
+// Detect tmux and patch stdout.write directly to strip the sequences
+// before they reach the terminal. This is more reliable than a Proxy
+// because it preserves the original stream identity for internal checks.
 const BSU = "\x1b[?2026h";
 const ESU = "\x1b[?2026l";
 const isTmux = !!(process.env.TMUX || process.env.TERM?.startsWith("tmux"));
 
-function getTmuxSafeStdout(): NodeJS.WriteStream {
-  if (!isTmux) return process.stdout;
-
-  return new Proxy(process.stdout, {
-    get(target, prop, receiver) {
-      if (prop === "write") {
-        return function (chunk: any, ...args: any[]) {
-          if (typeof chunk === "string") {
-            chunk = chunk.replaceAll(BSU, "").replaceAll(ESU, "");
-          }
-          return target.write(chunk, ...args);
-        };
-      }
-      return Reflect.get(target, prop, receiver);
-    },
-  });
+if (isTmux) {
+  const _origWrite = process.stdout.write;
+  process.stdout.write = function (
+    this: NodeJS.WriteStream,
+    chunk: any,
+    ...args: any[]
+  ) {
+    if (typeof chunk === "string") {
+      chunk = chunk.replaceAll(BSU, "").replaceAll(ESU, "");
+    }
+    return _origWrite.apply(this, [chunk, ...args] as any);
+  } as typeof process.stdout.write;
 }
 
 // ─── StickyFooter (imperative API) ────────────────────────────────────
@@ -417,10 +415,8 @@ export class StickyFooter {
 
   activate(): void {
     this.inkInstance = render(<App store={this.store} />, {
-      stdout: getTmuxSafeStdout(),
       exitOnCtrlC: false,
       patchConsole: false,
-      incrementalRendering: true,
     });
   }
 
