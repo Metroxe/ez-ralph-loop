@@ -432,6 +432,13 @@ export class StickyFooter {
       this.renderer.destroy();
       this.renderer = null;
     }
+    // Forcibly leave alternate screen and raw mode.
+    // renderer.destroy() can be deferred if a render is in progress,
+    // so the terminal may still be in alternate screen when this returns.
+    process.stdout.write("\x1b[?1049l");
+    if (process.stdin.setRawMode) {
+      process.stdin.setRawMode(false);
+    }
   }
 
   write(text: string, style?: "orange"): void {
