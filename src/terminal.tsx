@@ -357,11 +357,7 @@ function App({ store }: { store: TerminalStore }) {
           </Text>
         )}
       </Static>
-      {/* In tmux, don't render currentLine in the dynamic section.
-          Without synchronized updates (BSU/ESU), line wrapping in
-          currentLine causes eraseLines() to miscalculate, leaving
-          ghost lines. The text still appears when committed via \n. */}
-      {!isTmux && state.currentLine ? (
+      {state.currentLine ? (
         <Text color={state.currentLineStyle === "orange" ? "#FF9500" : undefined}>
           {state.currentLine}
         </Text>
@@ -376,11 +372,35 @@ function App({ store }: { store: TerminalStore }) {
 // Ink 6.7+ wraps renders in BSU/ESU (Begin/End Synchronized Update)
 // escape sequences. tmux can mishandle these, causing garbled output.
 // Detect tmux and patch stdout.write directly to strip the sequences
-// before they reach the terminal. This is more reliable than a Proxy
-// because it preserves the original stream identity for internal checks.
+// before they reach the terminal.
+//
+// Additionally, Ink's eraseLines uses a precise line count based on
+// Yoga's layout calculations. When characters render at different
+// widths in tmux (e.g. box-drawing chars, exact-width lines causing
+// phantom newlines), the erase doesn't cover all rows, leaving ghost
+// lines. We fix this by replacing eraseLines sequences with cursor-up
+// + "clear to end of screen" (\x1b[J), which clears everything below
+// the cursor regardless of the actual row count.
 const BSU = "\x1b[?2026h";
 const ESU = "\x1b[?2026l";
 const isTmux = !!(process.env.TMUX || process.env.TERM?.startsWith("tmux"));
+
+// Matches Ink's eraseLines output: \x1b[2K (\x1b[1A\x1b[2K)* \x1b[G
+// Each \x1b[2K is one line erased. We count them to know how far up to go.
+const ERASE_LINES_RE = /\x1b\[2K(?:\x1b\[1A\x1b\[2K)*\x1b\[G/g;
+
+function replaceEraseWithClear(chunk: string): string {
+  return chunk.replace(ERASE_LINES_RE, (match) => {
+    // Count how many lines the original eraseLines covered
+    const lineCount = (match.match(/\x1b\[2K/g) || []).length;
+    if (lineCount <= 0) return match;
+    // Move cursor up (lineCount - 1) times, go to column 0, clear to
+    // end of screen. This erases the footer area AND any ghost rows
+    // from wrapping discrepancies.
+    const up = lineCount > 1 ? `\x1b[${lineCount - 1}A` : "";
+    return up + "\x1b[G\x1b[J";
+  });
+}
 
 if (isTmux) {
   const _origWrite = process.stdout.write;
@@ -391,6 +411,7 @@ if (isTmux) {
   ) {
     if (typeof chunk === "string") {
       chunk = chunk.replaceAll(BSU, "").replaceAll(ESU, "");
+      chunk = replaceEraseWithClear(chunk);
     }
     return _origWrite.apply(this, [chunk, ...args] as any);
   } as typeof process.stdout.write;
