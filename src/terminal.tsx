@@ -421,6 +421,15 @@ export class StickyFooter {
     });
     this.root = createRoot(this.renderer);
     this.root.render(<App store={this.store} />);
+
+    // In raw mode, Ctrl+C doesn't generate SIGINT — it arrives as byte 0x03
+    // on stdin. OpenTUI parses it as a keypress but with exitOnCtrlC:false it's
+    // silently dropped. Re-raise SIGINT so process-level signal handlers work.
+    this.renderer.keyInput.on("keypress", (event) => {
+      if (event.name === "c" && event.ctrl) {
+        process.kill(process.pid, "SIGINT");
+      }
+    });
   }
 
   deactivate(): void {
