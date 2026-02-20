@@ -15,7 +15,8 @@ import { useState, useEffect, useSyncExternalStore } from "react";
 import chalk from "chalk";
 import { formatCost, formatDuration, formatNumber, stripAnsi } from "./format.js";
 import { AnsiText } from "./ansi.js";
-import type { CumulativeStats, LiveIterationStats } from "./types.js";
+import { fetchUsage, formatResetTime } from "./usage.js";
+import type { CumulativeStats, LiveIterationStats, UsageData } from "./types.js";
 
 const orange = chalk.hex("#FF9500");
 
@@ -33,6 +34,7 @@ interface StoreState {
   currentLineStyle?: "orange";
   liveStats: LiveIterationStats | null;
   cumulative: CumulativeStats;
+  usage: UsageData | null;
 }
 
 class TerminalStore {
@@ -52,6 +54,7 @@ class TerminalStore {
         totalInputTokens: 0,
         totalOutputTokens: 0,
       },
+      usage: null,
     };
   }
 
@@ -117,6 +120,11 @@ class TerminalStore {
 
   setCumulative(stats: CumulativeStats): void {
     this.state.cumulative = stats;
+    this.emit();
+  }
+
+  setUsage(usage: UsageData | null): void {
+    this.state.usage = usage;
     this.emit();
   }
 
@@ -282,12 +290,20 @@ function SmokingCigarette() {
 
 // ─── Footer Component ─────────────────────────────────────────────────
 
+function usageColor(pct: number): string {
+  if (pct >= 80) return "#FF5555";
+  if (pct >= 50) return "#FFFF00";
+  return "#50FA7B";
+}
+
 function Footer({
   liveStats,
   cumulative,
+  usage,
 }: {
   liveStats: LiveIterationStats | null;
   cumulative: CumulativeStats;
+  usage: UsageData | null;
 }) {
   const [now, setNow] = useState(Date.now());
   const { width: cols } = useTerminalDimensions();
@@ -348,9 +364,35 @@ function Footer({
           <text>
             <span fg="#FFFF00">{line3}</span>
           </text>
-          <text>
-            <span attributes={TextAttributes.DIM}>{" Usage: https://claude.ai/settings/usage"}</span>
-          </text>
+          {usage ? (
+            <text>
+              <span attributes={TextAttributes.DIM}>{" Usage: "}</span>
+              <span fg={usageColor(usage.fiveHour?.utilization ?? 0)}>
+                {`5h: ${usage.fiveHour?.utilization ?? "?"}%`}
+              </span>
+              <span attributes={TextAttributes.DIM}>
+                {` (${usage.fiveHour ? formatResetTime(usage.fiveHour.resetsAt) : "?"}) `}
+              </span>
+              <span attributes={TextAttributes.DIM}>{"│ "}</span>
+              <span fg={usageColor(usage.sevenDay?.utilization ?? 0)}>
+                {`7d: ${usage.sevenDay?.utilization ?? "?"}%`}
+              </span>
+              <span attributes={TextAttributes.DIM}>
+                {` (${usage.sevenDay ? formatResetTime(usage.sevenDay.resetsAt) : "?"}) `}
+              </span>
+              <span attributes={TextAttributes.DIM}>{"│ "}</span>
+              <span fg={usageColor(usage.sevenDaySonnet?.utilization ?? 0)}>
+                {`sonnet: ${usage.sevenDaySonnet?.utilization ?? "?"}%`}
+              </span>
+              <span attributes={TextAttributes.DIM}>
+                {` (${usage.sevenDaySonnet ? formatResetTime(usage.sevenDaySonnet.resetsAt) : "?"})`}
+              </span>
+            </text>
+          ) : (
+            <text>
+              <span attributes={TextAttributes.DIM}>{" Usage: https://claude.ai/settings/usage"}</span>
+            </text>
+          )}
         </box>
         {!isWide && <text><span>{" "}</span></text>}
         <SmokingCigarette />
@@ -387,7 +429,7 @@ function App({ store }: { store: TerminalStore }) {
           </text>
         ) : null}
       </scrollbox>
-      <Footer liveStats={state.liveStats} cumulative={state.cumulative} />
+      <Footer liveStats={state.liveStats} cumulative={state.cumulative} usage={state.usage} />
     </box>
   );
 }
@@ -403,6 +445,7 @@ export class StickyFooter {
   private logFilePath: string | undefined;
   private maxLogLines: number;
   private logLineCount = 0;
+  private usagePollInterval: ReturnType<typeof setInterval> | null = null;
 
   constructor(logFilePath?: string, maxLogLines = 0) {
     this.logFilePath = logFilePath;
@@ -430,9 +473,23 @@ export class StickyFooter {
         process.kill(process.pid, "SIGINT");
       }
     });
+
+    // Start background usage polling
+    fetchUsage().then((usage) => {
+      if (usage) this.store.setUsage(usage);
+    });
+    this.usagePollInterval = setInterval(() => {
+      fetchUsage(true).then((usage) => {
+        if (usage) this.store.setUsage(usage);
+      });
+    }, 60_000);
   }
 
   deactivate(): void {
+    if (this.usagePollInterval) {
+      clearInterval(this.usagePollInterval);
+      this.usagePollInterval = null;
+    }
     if (this.root) {
       this.root.unmount();
       this.root = null;
@@ -492,6 +549,10 @@ export class StickyFooter {
 
   setCumulative(stats: CumulativeStats): void {
     this.store.setCumulative(stats);
+  }
+
+  setUsage(usage: UsageData | null): void {
+    this.store.setUsage(usage);
   }
 
   getCumulative(): CumulativeStats {

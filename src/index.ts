@@ -16,7 +16,8 @@ import { formatCost, formatDuration, formatNumber } from "./format.js";
 import { StickyFooter } from "./terminal.js";
 import { BUILTIN_MCPS, getMissingEnvVars } from "./mcps.js";
 import { VERSION, checkForUpdate } from "./version.js";
-import type { CumulativeStats, InjectableMcp, IterationResult, LoopConfig, McpInjectFile, McpServerInfo } from "./types.js";
+import type { CumulativeStats, InjectableMcp, IterationResult, LoopConfig, McpInjectFile, McpServerInfo, ThrottleConfig } from "./types.js";
+import { fetchUsage, checkThrottle, formatResetTime } from "./usage.js";
 
 // ─── Subcommand Routing ────────────────────────────────────────────────
 
@@ -51,6 +52,9 @@ const program = new Command()
   .option("--ide", "enable IDE integration", false)
   .option("--chrome", "enable Chrome browser integration", false)
   .option("-d, --delay <seconds>", "delay in seconds between iterations", "0")
+  .option("--throttle-5h <percent>", "pause when 5h usage exceeds % (0=off)", "0")
+  .option("--throttle-7d <percent>", "pause when 7d usage exceeds % (0=off)", "0")
+  .option("--throttle-sonnet <percent>", "pause when sonnet/opus usage exceeds % (0=off)", "0")
   .option("--no-interactive", "skip interactive prompts, use defaults for missing args")
   .parse(process.argv);
 
@@ -586,6 +590,11 @@ async function gatherConfig(): Promise<LoopConfig> {
     enableIde: enableIde as boolean,
     enableChrome: enableChrome as boolean,
     delaySeconds: parseFloat(core.delaySeconds as string) || 0,
+    throttle: {
+      fiveHour: parseInt(opts.throttle5h, 10) || 0,
+      sevenDay: parseInt(opts.throttle7d, 10) || 0,
+      sonnet: parseInt(opts.throttleSonnet, 10) || 0,
+    },
   };
 }
 
@@ -646,6 +655,11 @@ async function buildConfigFromOpts(): Promise<LoopConfig> {
     enableIde: opts.ide ?? false,
     enableChrome: opts.chrome ?? false,
     delaySeconds: parseFloat(opts.delay) || 0,
+    throttle: {
+      fiveHour: parseInt(opts.throttle5h, 10) || 0,
+      sevenDay: parseInt(opts.throttle7d, 10) || 0,
+      sonnet: parseInt(opts.throttleSonnet, 10) || 0,
+    },
   };
 }
 
@@ -669,6 +683,9 @@ function buildRerunCommand(config: LoopConfig): string {
   }
 
   if (config.delaySeconds > 0) parts.push("-d", String(config.delaySeconds));
+  if (config.throttle.fiveHour > 0) parts.push("--throttle-5h", String(config.throttle.fiveHour));
+  if (config.throttle.sevenDay > 0) parts.push("--throttle-7d", String(config.throttle.sevenDay));
+  if (config.throttle.sonnet > 0) parts.push("--throttle-sonnet", String(config.throttle.sonnet));
   if (config.enableIde) parts.push("--ide");
   if (config.enableChrome) parts.push("--chrome");
 
@@ -767,6 +784,25 @@ async function runLoop(config: LoopConfig): Promise<void> {
   let stopReason: string | undefined;
 
   for (let i = 1; i <= maxIterations; i++) {
+    // Throttle check: pause if any usage bucket exceeds its threshold
+    const hasThrottle = config.throttle.fiveHour > 0 || config.throttle.sevenDay > 0 || config.throttle.sonnet > 0;
+    if (hasThrottle) {
+      while (true) {
+        const usage = await fetchUsage(i > 1);
+        if (!usage) break; // can't check, proceed
+        const hit = checkThrottle(usage, config.model, config.throttle);
+        if (!hit) {
+          footer.setUsage(usage);
+          break; // under threshold
+        }
+        footer.writeln(
+          chalk.yellow(`\u23f8 Throttled: ${hit.bucket} at ${hit.utilization}% (limit: ${hit.threshold}%). Resets in ${formatResetTime(hit.resetsAt)}. Checking in 60s...`)
+        );
+        footer.setUsage(usage);
+        await Bun.sleep(60_000);
+      }
+    }
+
     // Print iteration header in scroll area
     const iterLabel = config.iterations === 0
       ? `Iteration ${i} (infinite mode)`
@@ -954,6 +990,15 @@ async function main(): Promise<void> {
     console.log(`  MCPs:       ${mcpNames}`);
   } else {
     console.log(`  MCPs:       disabled (use --enable-mcps or --mcp-inject to enable)`);
+  }
+  const throttleParts: string[] = [];
+  if (config.throttle.fiveHour > 0) throttleParts.push(`5h: ${config.throttle.fiveHour}%`);
+  if (config.throttle.sevenDay > 0) throttleParts.push(`7d: ${config.throttle.sevenDay}%`);
+  if (config.throttle.sonnet > 0) throttleParts.push(`sonnet: ${config.throttle.sonnet}%`);
+  if (throttleParts.length > 0) {
+    console.log(`  Throttle:   ${throttleParts.join(", ")}`);
+  } else {
+    console.log(`  Throttle:   disabled`);
   }
   if (config.enableIde) console.log(`  IDE:        enabled`);
   if (config.enableChrome) console.log(`  Chrome:     enabled`);

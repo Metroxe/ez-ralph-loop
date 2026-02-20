@@ -74,6 +74,8 @@ export interface LoopConfig {
   enableChrome?: boolean;
   /** Delay in seconds between iterations (0 = no delay) */
   delaySeconds: number;
+  /** Per-bucket throttle thresholds (0 = disabled) */
+  throttle: ThrottleConfig;
 }
 
 /**
@@ -150,4 +152,34 @@ export interface LiveIterationStats {
   outputTokens: number;
   /** Estimated context window usage as a percentage (0-100) */
   contextPercent: number;
+}
+
+/**
+ * A single usage bucket from the Anthropic OAuth usage endpoint.
+ */
+export interface UsageBucket {
+  /** Utilization percentage (0-100) */
+  utilization: number;
+  /** ISO 8601 timestamp when this bucket resets */
+  resetsAt: string;
+}
+
+/**
+ * Parsed usage data from the Anthropic OAuth usage endpoint.
+ */
+export interface UsageData {
+  fiveHour: UsageBucket | null;
+  sevenDay: UsageBucket | null;
+  sevenDaySonnet: UsageBucket | null;
+  sevenDayOpus: UsageBucket | null;
+  fetchedAt: number;
+}
+
+/**
+ * Per-bucket throttle thresholds (0 = disabled).
+ */
+export interface ThrottleConfig {
+  fiveHour: number;
+  sevenDay: number;
+  sonnet: number;
 }
