@@ -874,8 +874,9 @@ function printFinalSummary(
   const cols = process.stdout.columns || 80;
   const isFatal = stopReason.startsWith("fatal error");
   const isInterrupted = stopReason.startsWith("user interrupted");
-  const color = isFatal ? chalk.red : isInterrupted ? chalk.yellow : chalk.green;
-  const icon = isFatal ? "✗" : isInterrupted ? "⚠" : "✓";
+  const isSentinel = stopReason.startsWith("--stop-string") || stopReason.startsWith("--continue-string");
+  const color = isFatal ? chalk.red : (isInterrupted || isSentinel) ? chalk.yellow : chalk.green;
+  const icon = isFatal ? "✗" : (isInterrupted || isSentinel) ? "⚠" : "✓";
 
   console.log("");
   console.log(color("━".repeat(cols)));
