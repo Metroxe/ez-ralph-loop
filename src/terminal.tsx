@@ -357,7 +357,11 @@ function App({ store }: { store: TerminalStore }) {
           </Text>
         )}
       </Static>
-      {state.currentLine ? (
+      {/* In tmux, don't render currentLine in the dynamic section.
+          Without synchronized updates (BSU/ESU), line wrapping in
+          currentLine causes eraseLines() to miscalculate, leaving
+          ghost lines. The text still appears when committed via \n. */}
+      {!isTmux && state.currentLine ? (
         <Text color={state.currentLineStyle === "orange" ? "#FF9500" : undefined}>
           {state.currentLine}
         </Text>
