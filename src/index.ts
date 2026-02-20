@@ -880,7 +880,8 @@ function printFinalSummary(
 
   console.log("");
   console.log(color("━".repeat(cols)));
-  console.log(chalk.bold(color(`  ${icon} Cig Loop Complete`)));
+  const heading = isFatal ? "Cig Loop Crashed" : (isInterrupted || isSentinel) ? "Cig Loop Stopped" : "Cig Loop Complete";
+  console.log(chalk.bold(color(`  ${icon} ${heading}`)));
   console.log("");
   const totalLabel = config.iterations === 0
     ? `${cumulative.completedIterations} (infinite mode)`
