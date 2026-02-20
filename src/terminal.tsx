@@ -439,6 +439,16 @@ export class StickyFooter {
     if (process.stdin.setRawMode) {
       process.stdin.setRawMode(false);
     }
+    // Dump scroll buffer to stdout so it persists in terminal scrollback
+    const state = this.store.getSnapshot();
+    for (const line of state.lines) {
+      const text = line.style === "orange" ? orange(line.text) : line.text;
+      process.stdout.write(text + "\n");
+    }
+    if (state.currentLine) {
+      const text = state.currentLineStyle === "orange" ? orange(state.currentLine) : state.currentLine;
+      process.stdout.write(text + "\n");
+    }
   }
 
   write(text: string, style?: "orange"): void {
