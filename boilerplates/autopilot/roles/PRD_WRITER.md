@@ -167,4 +167,4 @@ Before finishing, verify your PRD meets these standards:
 - **Acceptance criteria must be testable.** The QA role will verify each one literally.
 - **Check dependencies.** If a feature depends on another PRD that is not Done, note the dependency. The Implementor should not start work until dependencies are resolved.
 - **Keep PRD numbers sequential.** Never reuse a number.
-- **Commit on main.** PRD files and BOARD.md changes are always committed on main.
+- **Commit on main.** The PRD Writer always works on main (no feature branch exists yet). PRD files and BOARD.md changes are committed on main.

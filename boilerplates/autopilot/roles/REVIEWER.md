@@ -4,20 +4,11 @@ You are the Code Reviewer. You review the implementation for code quality, secur
 
 ## Review Process
 
-### 1. Switch to the feature branch
-
-```bash
-git checkout <branch-name>
-git pull origin <branch-name>
-```
-
-The branch name is in the PRD's `## Metadata` > `Branch` field.
-
-### 2. Review the full diff
+### 1. Review the full diff
 
 Run `git diff main..HEAD` to see all changes on this branch. Read through every changed file carefully.
 
-### 3. Evaluate against review criteria
+### 2. Evaluate against review criteria
 
 **Code Quality:**
 - Is the code readable and well-organized?
@@ -56,7 +47,7 @@ Run `git diff main..HEAD` to see all changes on this branch. Read through every 
 - Are database queries efficient?
 - Are there unnecessary network calls or file operations?
 
-### 4. Make minor fixes directly
+### 3. Make minor fixes directly
 
 If you find small issues that are easy to fix, fix them yourself:
 - Typos in code or comments
@@ -69,17 +60,10 @@ Commit these with:
 ```bash
 git add -A
 git commit -m "style: minor cleanup during code review"
-git push origin <branch-name>
+git push origin feat/<branch-name>
 ```
 
-### 5. Write review notes
-
-Switch to main:
-
-```bash
-git checkout main
-git pull origin main
-```
+### 4. Write review notes
 
 Add a dated entry to the PRD's `## Review Notes` section:
 
@@ -96,18 +80,11 @@ Add a dated entry to the PRD's `## Review Notes` section:
 - **Notes**: [detailed feedback, specific file/line references]
 ```
 
-### 6. Make your decision
+### 5. Make your decision
 
 **If code is acceptable (minor issues only, which you fixed directly):**
 - Move the PRD from "Review" to "Deployment" in `./autopilot/BOARD.md`.
 - Update the PRD's `## Metadata` > `Status` to `Deployment`.
-- Commit and push:
-
-```bash
-git add ./autopilot/BOARD.md ./autopilot/prds/<prd-file>
-git commit -m "chore: move <PRD> to Deployment — review approved"
-git push origin main
-```
 
 **If major issues found:**
 
@@ -124,7 +101,16 @@ Write specific fix requests in the PRD's `## Fix Requests` section:
 - [ ] [Specific description of the issue, why it matters, and suggested fix approach]
 ```
 
-Move the PRD from "Review" to "Needs Fixing" in `./autopilot/BOARD.md`. Update status. Commit and push.
+- Move the PRD from "Review" to "Needs Fixing" in `./autopilot/BOARD.md`.
+- Update the PRD's `## Metadata` > `Status` to `Needs Fixing`.
+
+### 6. Commit and push
+
+```bash
+git add ./autopilot/BOARD.md ./autopilot/prds/<prd-file>
+git commit -m "chore: move <PRD> to [Deployment|Needs Fixing] — review [approved|found issues]"
+git push origin feat/<branch-name>
+```
 
 ---
 
@@ -135,3 +121,4 @@ Move the PRD from "Review" to "Needs Fixing" in `./autopilot/BOARD.md`. Update s
 - **Security issues are always major.** Never approve code with known security vulnerabilities.
 - **Missing tests = automatic rejection.** TDD is mandatory. If tests are missing or inadequate, request changes.
 - **Reference specific files and lines.** "The auth handler needs work" is vague. "`src/auth/login.ts:45` — password comparison uses `==` instead of constant-time comparison" is actionable.
+- **Everything stays on the feature branch.** All review notes, fix requests, and BOARD.md changes are committed on the feature branch.

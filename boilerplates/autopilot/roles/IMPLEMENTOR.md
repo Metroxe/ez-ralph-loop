@@ -23,69 +23,54 @@ Read the PRD's `## Dependencies` section. If it lists other PRDs that must be co
 - If all dependencies are Done (or the PRD has no dependencies): proceed to step 1.
 - If any dependency is NOT Done: skip this PRD. Take the next item from the Backlog that has its dependencies met. If no Backlog items have their dependencies met, add a blocker to `./autopilot/BLOCKERS.md` explaining which PRDs are blocked and why, then output `[STOP LOOP]`.
 
-### 1. Update the board and create a feature branch (FIRST required update)
+### 1. Create a feature branch
 
-Determine the branch name: `feat/<prd-number>-<short-name>` (e.g., `feat/003-user-auth`).
+Determine the branch name from the PRD filename: `feat/<filename-without-.md>` (e.g., PRD file `003-user-auth.md` → branch `feat/003-user-auth`).
 
-While still on main, update the state files:
+```bash
+git checkout -b feat/<branch-name>
+```
 
-- Move the PRD from "Backlog" to "In Progress" in `./autopilot/BOARD.md`.
-- Update the PRD's `## Metadata`:
-  - `Status` → `In Progress`
-  - `Branch` → `feat/<prd-number>-<short-name>`
+### 2. Update the board
 
-Commit, push, then create the branch:
+Move the PRD from "Backlog" to "In Progress" in `./autopilot/BOARD.md`. Update the PRD's `## Metadata`:
+- `Status` → `In Progress`
+- `Branch` → `feat/<branch-name>`
+
+Commit and push:
 
 ```bash
 git add ./autopilot/BOARD.md ./autopilot/prds/<prd-file>
 git commit -m "chore: move <PRD> to In Progress"
-git push origin main
-git checkout -b feat/<branch-name>
+git push -u origin feat/<branch-name>
 ```
 
-**Do this immediately before starting any code work.**
-
-### 2. Write tests FIRST (TDD — Red Phase)
+### 3. Write tests FIRST (TDD — Red Phase)
 
 Read the PRD's `## Test Plan` and `## Acceptance Criteria` sections. Write failing tests that verify each acceptance criterion. Do not write any implementation code yet.
 
 Run the tests to confirm they fail (red phase).
 
-### 3. Implement (TDD — Green Phase)
+### 4. Implement (TDD — Green Phase)
 
 Write the minimum code needed to make all tests pass.
 
-### 4. Refactor (TDD — Refactor Phase)
+### 5. Refactor (TDD — Refactor Phase)
 
 Clean up the implementation. Ensure tests still pass.
 
-### 5. Run the full test suite
+### 6. Run the full test suite
 
 Run all tests (not just the new ones) to check for regressions.
 
-### 6. Commit and push
+### 7. Commit, push, and update the board
 
 Use conventional commits:
 - `test: add tests for <feature>`
 - `feat: implement <feature>`
 - `refactor: clean up <feature>` (if applicable)
 
-```bash
-git push -u origin feat/<branch-name>
-```
-
-### 7. Update the board (SECOND required update)
-
-Switch to main to update state files:
-
-```bash
-git checkout main
-git pull origin main
-```
-
-- Move the PRD from "In Progress" to "QA" in `./autopilot/BOARD.md`.
-- Update the PRD's `## Metadata` > `Status` to `QA`.
-- Add a note to `## Implementation Notes`:
+Move the PRD from "In Progress" to "QA" in `./autopilot/BOARD.md`. Update the PRD's `## Metadata` > `Status` to `QA`. Add a note to `## Implementation Notes`:
 
 ```markdown
 ### Build — YYYY-MM-DD
@@ -94,12 +79,10 @@ git pull origin main
 - Files modified: [key files]
 ```
 
-- Commit and push:
-
 ```bash
-git add ./autopilot/BOARD.md ./autopilot/prds/<prd-file>
+git add -A
 git commit -m "chore: move <PRD> to QA"
-git push origin main
+git push origin feat/<branch-name>
 ```
 
 ---
@@ -110,16 +93,7 @@ git push origin main
 
 Read the PRD's `## Fix Requests` section. Each unchecked item (`- [ ]`) is a fix you must address.
 
-### 2. Switch to the feature branch
-
-```bash
-git checkout feat/<branch-name>
-git pull origin feat/<branch-name>
-```
-
-The branch name is in the PRD's `## Metadata` > `Branch` field.
-
-### 3. Address each fix request
+### 2. Address each fix request
 
 Work through each unchecked fix request:
 - Write or update tests for the fix if applicable.
@@ -127,25 +101,9 @@ Work through each unchecked fix request:
 - Run the full test suite to confirm everything passes.
 - Mark the fix request as done in the PRD: `- [x]`
 
-### 4. Commit and push
+### 3. Commit, push, and update the board
 
-```bash
-git add -A
-git commit -m "fix: <description of fixes>"
-git push origin feat/<branch-name>
-```
-
-### 5. Update the board
-
-Switch to main:
-
-```bash
-git checkout main
-git pull origin main
-```
-
-- Clear completed fix requests from the PRD (remove all `- [x]` items from `## Fix Requests`).
-- Add a note to `## Implementation Notes`:
+Clear completed fix requests from the PRD (remove all `- [x]` items from `## Fix Requests`). Add a note to `## Implementation Notes`:
 
 ```markdown
 ### Fix — YYYY-MM-DD
@@ -153,14 +111,12 @@ git pull origin main
 - Tests: all passing
 ```
 
-- Move the PRD from "Needs Fixing" to "QA" in `./autopilot/BOARD.md`.
-- Update the PRD's `## Metadata` > `Status` to `QA`.
-- Commit and push:
+Move the PRD from "Needs Fixing" to "QA" in `./autopilot/BOARD.md`. Update the PRD's `## Metadata` > `Status` to `QA`.
 
 ```bash
-git add ./autopilot/BOARD.md ./autopilot/prds/<prd-file>
-git commit -m "chore: move <PRD> to QA after fixes"
-git push origin main
+git add -A
+git commit -m "fix: <description of fixes>"
+git push origin feat/<branch-name>
 ```
 
 ---
@@ -173,16 +129,9 @@ A previous iteration started work but ran out of context. Pick up where it left 
 
 Check the PRD's `## Implementation Notes` for the most recent entry. It will describe what was completed and what remains.
 
-### 2. Switch to the feature branch
+### 2. Resume work
 
-```bash
-git checkout feat/<branch-name>
-git pull origin feat/<branch-name>
-```
-
-### 3. Resume work
-
-Continue from where the previous iteration stopped. Follow the same workflow as Build Mode steps 2-7, but skip steps already completed (check the progress notes).
+Continue from where the previous iteration stopped. Follow the same workflow as Build Mode steps 3-7, but skip steps already completed (check the progress notes).
 
 ---
 
@@ -200,18 +149,15 @@ Monitor your context usage as you work. If you are approaching the limit (~150k 
 - Next steps: [specific instructions for the next iteration to pick up]
 ```
 
-2. **Commit and push all current work** on the feature branch.
-
-3. **Update state on main:**
+2. **Commit and push all current work:**
 
 ```bash
-git checkout main
-git pull origin main
+git add -A
+git commit -m "wip: progress on <feature> — saving before context limit"
+git push origin feat/<branch-name>
 ```
 
-- Update the PRD's progress notes.
-- **Keep the PRD in "In Progress"** on the board. Do NOT move it to QA.
-- Commit and push state changes.
+3. **Keep the PRD in "In Progress"** on the board. Do NOT move it to QA.
 
 4. Output `[CONTINUE LOOP]`. The next iteration will pick it up in Continue Mode automatically.
 
@@ -237,7 +183,6 @@ If you encounter something requiring human intervention (need API keys, service 
 - **TDD is mandatory.** Write tests before implementation for every feature.
 - **One PRD per iteration.** Do not start a second PRD.
 - **Check dependencies before starting.** Do not build a PRD whose dependencies are not Done.
-- **Update BOARD.md immediately** when moving to In Progress (Build Mode step 1). Do not wait until the end.
+- **Everything stays on the feature branch.** All code, tests, BOARD.md changes, and PRD file updates are committed on the feature branch. Do not switch to main.
 - **Always push.** Every iteration must push its commits so work is not lost.
 - **Use conventional commits.** `feat:`, `fix:`, `test:`, `refactor:`, `chore:`.
-- **State files go on main.** BOARD.md, BLOCKERS.md, and PRD file changes are committed on the main branch. Code changes go on the feature branch.
