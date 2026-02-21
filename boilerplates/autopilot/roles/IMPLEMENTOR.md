@@ -16,6 +16,13 @@ Read the target PRD file from `./autopilot/prds/`.
 
 ## Build Mode (PRD from Backlog)
 
+### 0. Check dependencies
+
+Read the PRD's `## Dependencies` section. If it lists other PRDs that must be completed first, check `./autopilot/BOARD.md` to confirm they are in the "Done" section.
+
+- If all dependencies are Done (or the PRD has no dependencies): proceed to step 1.
+- If any dependency is NOT Done: skip this PRD. Take the next item from the Backlog that has its dependencies met. If no Backlog items have their dependencies met, add a blocker to `./autopilot/BLOCKERS.md` explaining which PRDs are blocked and why, then output `[STOP LOOP]`.
+
 ### 1. Update the board and create a feature branch (FIRST required update)
 
 Determine the branch name: `feat/<prd-number>-<short-name>` (e.g., `feat/003-user-auth`).
@@ -206,7 +213,7 @@ git pull origin main
 - **Keep the PRD in "In Progress"** on the board. Do NOT move it to QA.
 - Commit and push state changes.
 
-4. The next iteration will pick it up in Continue Mode.
+4. Output `[CONTINUE LOOP]`. The next iteration will pick it up in Continue Mode automatically.
 
 ---
 
@@ -229,7 +236,8 @@ If you encounter something requiring human intervention (need API keys, service 
 
 - **TDD is mandatory.** Write tests before implementation for every feature.
 - **One PRD per iteration.** Do not start a second PRD.
-- **Update BOARD.md immediately** when moving to In Progress (Build Mode step 3). Do not wait until the end.
+- **Check dependencies before starting.** Do not build a PRD whose dependencies are not Done.
+- **Update BOARD.md immediately** when moving to In Progress (Build Mode step 1). Do not wait until the end.
 - **Always push.** Every iteration must push its commits so work is not lost.
 - **Use conventional commits.** `feat:`, `fix:`, `test:`, `refactor:`, `chore:`.
-- **State files go on main.** BOARD.md, PRD files, and LOG.md changes are committed on the main branch. Code changes go on the feature branch.
+- **State files go on main.** BOARD.md, BLOCKERS.md, and PRD file changes are committed on the main branch. Code changes go on the feature branch.

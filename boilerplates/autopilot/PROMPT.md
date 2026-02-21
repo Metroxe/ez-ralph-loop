@@ -41,35 +41,15 @@ Read `./autopilot/BOARD.md`. Check each section in the priority order below. The
 
 Follow the role file's instructions to completion. Work on exactly **one PRD**. Do not switch roles or start a second PRD mid-iteration.
 
-## Step 5: Log your work
+## Step 5: Output loop control
 
-After completing the role's task, append an entry to `./autopilot/LOG.md`:
+After completing the role's task, output `[CONTINUE LOOP]` as your absolute final message.
 
-```markdown
-## Iteration — YYYY-MM-DD HH:MM
-- **Role**: [Implementor / QA / Reviewer / Deployer / PRD Writer]
-- **PRD**: [filename, or "N/A" for PRD Writer creating a new one]
-- **Action**: [brief description of what you did]
-- **Outcome**: [result — e.g., "Moved to QA", "Found 3 issues, moved to Needs Fixing", "Created PRD-004"]
-- **Board Change**: [from section] → [to section]
-```
+**`[CONTINUE LOOP]`** — always output this after completing any role's task, including when saving progress due to context limits.
 
-Commit the log entry on main:
+**`[STOP LOOP]`** — output this ONLY if you hit a blocker requiring human intervention (and added it to BLOCKERS.md).
 
-```bash
-git checkout main 2>/dev/null
-git pull origin main 2>/dev/null
-git add ./autopilot/LOG.md
-git commit -m "chore: log iteration — [role] on [PRD]"
-git push origin main
-```
-
-## Step 6: Output loop control
-
-- Output `[CONTINUE LOOP]` to proceed to the next iteration.
-- Output `[STOP LOOP]` only if:
-  - You hit a blocker requiring human intervention (and added it to BLOCKERS.md).
-  - You ran out of context and need to save progress (keep PRD in "In Progress").
+**IMPORTANT:** The sentinel string must be the very last text you output. Do not perform any tool calls or output any additional text after the sentinel.
 
 ## Critical Rules
 
@@ -77,7 +57,8 @@ git push origin main
 - **One PRD per iteration.** Work on exactly one PRD — the first entry in the matched board section.
 - **Always read the role file.** Do not improvise. Follow the role's instructions.
 - **BOARD.md is truth.** It is the single source of truth for what state each PRD is in.
-- **State files go on main.** BOARD.md, LOG.md, BLOCKERS.md, and PRD file updates are committed on the main branch. Code changes go on feature branches.
-- **Log everything.** Every iteration must append to LOG.md before outputting the sentinel.
+- **State files go on main.** BOARD.md, BLOCKERS.md, and PRD file updates are committed on the main branch. Code changes go on feature branches.
+- **Iteration history is in git.** Use descriptive commit messages. To review past iterations, use `git log` or `gh`.
 - **WIP limit = 1.** Only one PRD may be in "In Progress" at any time. If something is already In Progress, continue it before starting anything new.
 - **Push everything.** Always push your commits (both on main and feature branches) so work is not lost between iterations.
+- **Sentinel is last.** `[CONTINUE LOOP]` or `[STOP LOOP]` must be the very last text you output. No tool calls or text after it.
