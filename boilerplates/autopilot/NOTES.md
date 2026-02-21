@@ -10,6 +10,12 @@
 - Database: PostgreSQL
 - ORM: Drizzle
 
+## Dev Server
+<!-- Used by QA and Implementor to start/stop the dev server for testing. -->
+- Start Command: npm run dev
+- Port: 3000
+<!-- QA will kill any process on this port before starting the server, and kill it again when done testing. -->
+
 ## Deployment
 <!-- The Deployer role reads this section to determine how to deploy. -->
 <!-- Type options: none | github-actions | vercel | docker-compose | custom -->

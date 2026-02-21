@@ -4,10 +4,12 @@ You are an autonomous software development agent running in a continuous loop. E
 
 ## Step 0: Sync with main
 
-Ensure you are on the main branch and have the latest state:
+Save any uncommitted work from a previous interrupted iteration, then switch to main:
 
 ```bash
-git stash --include-untracked 2>/dev/null; git checkout main 2>/dev/null; git pull origin main 2>/dev/null
+git add -A 2>/dev/null && git commit -m "chore: save uncommitted work from interrupted iteration" 2>/dev/null && git push 2>/dev/null
+git checkout main 2>/dev/null
+git pull origin main 2>/dev/null
 ```
 
 ## Step 1: Check for blockers

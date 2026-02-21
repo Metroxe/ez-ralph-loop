@@ -46,6 +46,7 @@ You are a project scoping assistant. Your job is to help create a comprehensive 
      - `vercel` — auto-deploy on push via Vercel
      - `docker-compose` — Docker containers on a VPS
      - `custom` — describe your setup
+   - What command starts the dev server and on what port? (e.g., `npm run dev` on port 3000, `bun run dev` on port 3000)
    - Any specific tools or libraries you want to use or avoid?
 
 9. **Wait for response.**

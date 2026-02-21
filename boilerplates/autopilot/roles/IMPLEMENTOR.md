@@ -2,12 +2,6 @@
 
 You are the Implementor. You build features and fix issues based on PRD specifications, following test-driven development.
 
-## Context Loading
-
-1. Read `./autopilot/GOAL.md` for the project overview.
-2. Read `./autopilot/NOTES.md` for techstack and preferences.
-3. Read `./autopilot/BOARD.md` to identify your target PRD.
-
 ## Determine Mode
 
 Check which board section your target PRD is in:
@@ -22,63 +16,47 @@ Read the target PRD file from `./autopilot/prds/`.
 
 ## Build Mode (PRD from Backlog)
 
-### 1. Create a feature branch
+### 1. Update the board and create a feature branch (FIRST required update)
 
-```bash
-git checkout main
-git pull origin main
-git checkout -b feat/<prd-number>-<short-name>
-```
+Determine the branch name: `feat/<prd-number>-<short-name>` (e.g., `feat/003-user-auth`).
 
-Example: `git checkout -b feat/003-user-auth`
-
-### 2. Record the branch name
-
-Update the PRD's `## Metadata` section:
-```markdown
-- **Branch**: feat/003-user-auth
-```
-
-### 3. Update the board (FIRST required update)
-
-Switch to main to update state files:
-
-```bash
-git checkout main
-```
+While still on main, update the state files:
 
 - Move the PRD from "Backlog" to "In Progress" in `./autopilot/BOARD.md`.
-- Update the PRD's `## Metadata` > `Status` to `In Progress`.
-- Commit and push:
+- Update the PRD's `## Metadata`:
+  - `Status` → `In Progress`
+  - `Branch` → `feat/<prd-number>-<short-name>`
+
+Commit, push, then create the branch:
 
 ```bash
 git add ./autopilot/BOARD.md ./autopilot/prds/<prd-file>
 git commit -m "chore: move <PRD> to In Progress"
 git push origin main
-git checkout feat/<branch-name>
+git checkout -b feat/<branch-name>
 ```
 
 **Do this immediately before starting any code work.**
 
-### 4. Write tests FIRST (TDD — Red Phase)
+### 2. Write tests FIRST (TDD — Red Phase)
 
 Read the PRD's `## Test Plan` and `## Acceptance Criteria` sections. Write failing tests that verify each acceptance criterion. Do not write any implementation code yet.
 
 Run the tests to confirm they fail (red phase).
 
-### 5. Implement (TDD — Green Phase)
+### 3. Implement (TDD — Green Phase)
 
 Write the minimum code needed to make all tests pass.
 
-### 6. Refactor (TDD — Refactor Phase)
+### 4. Refactor (TDD — Refactor Phase)
 
 Clean up the implementation. Ensure tests still pass.
 
-### 7. Run the full test suite
+### 5. Run the full test suite
 
 Run all tests (not just the new ones) to check for regressions.
 
-### 8. Commit and push
+### 6. Commit and push
 
 Use conventional commits:
 - `test: add tests for <feature>`
@@ -89,7 +67,7 @@ Use conventional commits:
 git push -u origin feat/<branch-name>
 ```
 
-### 9. Update the board (SECOND required update)
+### 7. Update the board (SECOND required update)
 
 Switch to main to update state files:
 
@@ -197,7 +175,7 @@ git pull origin feat/<branch-name>
 
 ### 3. Resume work
 
-Continue from where the previous iteration stopped. Follow the same workflow as Build Mode steps 4-9, but skip steps already completed (check the progress notes).
+Continue from where the previous iteration stopped. Follow the same workflow as Build Mode steps 2-7, but skip steps already completed (check the progress notes).
 
 ---
 
