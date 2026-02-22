@@ -16,11 +16,12 @@ Check if a feature branch exists:
 git branch --list 'feat/*'
 ```
 
-- **If a feature branch exists:** switch to it and pull latest changes.
+- **If exactly one feature branch exists:** switch to it and pull latest changes.
   ```bash
   git checkout <branch-name>
   git pull origin <branch-name> 2>/dev/null
   ```
+- **If multiple feature branches exist:** this violates WIP=1. Add a blocker to `./autopilot/BLOCKERS.md` listing the branches and output `[STOP LOOP]`.
 - **If no feature branch exists:** ensure you're on main and pull.
   ```bash
   git checkout main 2>/dev/null

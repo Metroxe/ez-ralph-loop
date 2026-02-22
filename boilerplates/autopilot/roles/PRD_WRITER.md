@@ -79,7 +79,6 @@ Create the file at `./autopilot/prds/<filename>` with this exact structure:
 # PRD-<NNN>: <Feature Name>
 
 ## Metadata
-- **Status**: Backlog
 - **Branch**: (not yet created)
 - **Created**: YYYY-MM-DD
 

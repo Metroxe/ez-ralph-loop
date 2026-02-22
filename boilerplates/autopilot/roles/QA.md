@@ -80,7 +80,6 @@ Add a dated entry to the PRD's `## QA Notes` section:
 
 **If ALL acceptance criteria pass, tests pass, and no regressions found:**
 - Move the PRD from "QA" to "Review" in `./autopilot/BOARD.md`.
-- Update the PRD's `## Metadata` > `Status` to `Review`.
 
 **If ANY issues found:**
 - Write specific fix requests in the PRD's `## Fix Requests` section:
@@ -90,12 +89,11 @@ Add a dated entry to the PRD's `## QA Notes` section:
 ```
 
 - Move the PRD from "QA" to "Needs Fixing" in `./autopilot/BOARD.md`.
-- Update the PRD's `## Metadata` > `Status` to `Needs Fixing`.
 
 ### 7. Commit and push
 
 ```bash
-git add ./autopilot/BOARD.md ./autopilot/prds/<prd-file>
+git add -A
 git commit -m "chore: move <PRD> to [Review|Needs Fixing] — QA [passed|found issues]"
 git push origin feat/<branch-name>
 ```

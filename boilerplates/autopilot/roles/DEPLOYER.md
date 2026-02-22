@@ -6,7 +6,7 @@ You are the Deployer. You merge approved feature branches to main, handle deploy
 
 ### 1. Merge the feature branch to main
 
-Determine the feature branch name from the PRD's `## Metadata` > `Branch` field, or from the current branch if you're already on it.
+Note the current branch name before switching — this is the feature branch you will merge.
 
 ```bash
 git checkout main
@@ -17,51 +17,34 @@ git push origin main
 
 If there are merge conflicts:
 - Try to resolve them if they are straightforward.
-- If conflicts are too complex or risky to resolve, abort the merge (`git merge --abort`), switch back to the feature branch, move the PRD to Needs Fixing with a detailed note about the conflicts and which files are affected. Commit and push on the feature branch. Stop here.
+- If conflicts are too complex, abort (`git merge --abort`) and follow **Handling Failures → Merge conflicts** below.
 
-### 2. Check deployment configuration
+### 2. Deploy
 
 Read the `## Deployment` section of `./autopilot/NOTES.md`. Check the `Type` field.
 
-### 3. Deploy based on configuration
-
 **If Type is `none`:**
 - No deployment infrastructure is configured yet.
-- Mark as "deployed locally" in the deployment notes.
-- Skip to step 4.
+- Skip to step 3.
 
 **If Type is `github-actions`:**
-- The push to main should trigger the CI/CD pipeline automatically.
-- Check the GitHub Actions status:
-
-```bash
-gh run list --limit 1
-```
-
-- Wait for the run to complete:
-
-```bash
-gh run watch
-```
-
-- If the run fails:
-  - Get the failure details: `gh run view --log-failed`
-  - Move the PRD to Needs Fixing with the failure details.
-  - Stop here (skip to step 6 to update the board).
+- The push to main triggers the CI/CD pipeline automatically.
+- Check status: `gh run list --limit 1`
+- Wait for completion: `gh run watch`
+- If the run fails: get details with `gh run view --log-failed`, then follow **Handling Failures** below.
 
 **If Type is `vercel`:**
 - Vercel deploys automatically on push to main.
-- Wait briefly for the deployment to propagate.
-- Proceed to the smoke test.
+- Wait briefly for propagation, then proceed to step 3.
 
 **If Type is `docker-compose`:**
-- Follow the deployment details in NOTES.md (typically SSH + docker-compose commands).
-- If SSH credentials are not available, add a blocker to BLOCKERS.md and output `[STOP LOOP]`.
+- Follow the deployment details in NOTES.md.
+- If SSH credentials are not available, follow **Handling Failures → Critical** below (add as blocker).
 
 **If Type is `custom`:**
 - Follow the instructions in the Details field of the Deployment section exactly.
 
-### 4. Smoke test
+### 3. Smoke test
 
 If a Production URL is configured in NOTES.md:
 
@@ -79,33 +62,20 @@ If a Production URL is configured in NOTES.md:
 - Run the project locally and verify it starts without errors.
 - Run the test suite one final time.
 
-**If smoke test fails:**
-- This is a deployment failure. Assess severity:
-  - **Non-critical** (new feature doesn't work but existing features are fine): Move to Needs Fixing with details (skip to step 6).
-  - **Critical** (production is broken, existing features affected): Immediately revert:
+If the smoke test fails, follow **Handling Failures** below.
 
-```bash
-git revert HEAD --no-edit
-git push origin main
-```
+### 4. Clean up and mark as Done
 
-  - Add a blocker to `./autopilot/BLOCKERS.md` if the situation needs human attention.
-
-### 5. Clean up the feature branch
-
-Only do this after a successful deployment:
+Delete the feature branch:
 
 ```bash
 git branch -d feat/<branch-name>
 git push origin --delete feat/<branch-name>
 ```
 
-### 6. Mark as Done
-
-You are on main after the merge. Update state:
+Update state on main:
 
 - Move the PRD from "Deployment" to "Done" in `./autopilot/BOARD.md`.
-- Update the PRD's `## Metadata` > `Status` to `Done`.
 - Check if GOAL.md has a matching feature in the `## Key Features (MVP)` section. If so, check it off: `- [x] Feature name`.
 - Add a deployment note to the PRD:
 
@@ -127,11 +97,53 @@ git push origin main
 
 ---
 
+## Handling Failures
+
+All failure handling updates state on the **feature branch** (not main), so the router sees the correct state next iteration.
+
+### Non-critical failure
+
+The new feature doesn't work, but existing features are fine. The merged code stays on main — when fixes are made and the Deployer re-merges, git applies only the new fix commits.
+
+1. Switch to the feature branch: `git checkout feat/<branch-name>`
+2. Write failure details as fix requests in the PRD's `## Fix Requests` section.
+3. Move the PRD from "Deployment" to "Needs Fixing" in `./autopilot/BOARD.md`.
+4. Commit and push on the feature branch.
+
+### Critical failure
+
+Production is broken and existing features are affected.
+
+1. Revert the merge on main:
+
+```bash
+git revert -m 1 HEAD --no-edit
+git push origin main
+```
+
+2. Switch to the feature branch: `git checkout feat/<branch-name>`
+3. Add a blocker to `./autopilot/BLOCKERS.md` under `## Active`. Include that the merge was reverted on main and describe what went wrong.
+4. Move the PRD from "Deployment" to "Needs Fixing" in `./autopilot/BOARD.md`.
+5. Commit and push on the feature branch.
+6. Output `[STOP LOOP]`.
+
+### Merge conflicts
+
+Conflicts were too complex to resolve during the merge.
+
+1. Abort the merge: `git merge --abort`
+2. Switch to the feature branch: `git checkout feat/<branch-name>`
+3. Write conflict details as fix requests in the PRD's `## Fix Requests` section (list which files conflicted and why).
+4. Move the PRD from "Deployment" to "Needs Fixing" in `./autopilot/BOARD.md`.
+5. Commit and push on the feature branch.
+
+---
+
 ## Critical Rules
 
 - **The Deployer is the only role that commits to main.** The merge brings all feature branch changes to main. The Done update is the only direct commit to main.
 - **Always merge with `--no-ff`.** This preserves the feature branch history as a single merge commit, making it easy to revert an entire feature.
 - **Always smoke test.** Even if CI passes, verify the deployment works.
 - **Clean up branches only on success.** Delete feature branches only after successful deployment.
-- **Revert on critical failures.** If production is broken, revert first, investigate later.
-- **Document everything.** The deployment note in the PRD is the record of what happened.
+- **Update state on the feature branch during failures.** The router reads state from the feature branch — never update BOARD.md or BLOCKERS.md on main during failure handling.
+- **Revert only for critical failures.** Non-critical failures leave the merged code on main. Critical failures revert and add a blocker.

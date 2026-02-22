@@ -33,9 +33,7 @@ git checkout -b feat/<branch-name>
 
 ### 2. Update the board
 
-Move the PRD from "Backlog" to "In Progress" in `./autopilot/BOARD.md`. Update the PRD's `## Metadata`:
-- `Status` → `In Progress`
-- `Branch` → `feat/<branch-name>`
+Move the PRD from "Backlog" to "In Progress" in `./autopilot/BOARD.md`. Update the PRD's `## Metadata` > `Branch` to `feat/<branch-name>`.
 
 Commit and push:
 
@@ -70,7 +68,7 @@ Use conventional commits:
 - `feat: implement <feature>`
 - `refactor: clean up <feature>` (if applicable)
 
-Move the PRD from "In Progress" to "QA" in `./autopilot/BOARD.md`. Update the PRD's `## Metadata` > `Status` to `QA`. Add a note to `## Implementation Notes`:
+Move the PRD from "In Progress" to "QA" in `./autopilot/BOARD.md`. Add a note to the PRD's `## Implementation Notes`:
 
 ```markdown
 ### Build — YYYY-MM-DD
@@ -111,7 +109,7 @@ Clear completed fix requests from the PRD (remove all `- [x]` items from `## Fix
 - Tests: all passing
 ```
 
-Move the PRD from "Needs Fixing" to "QA" in `./autopilot/BOARD.md`. Update the PRD's `## Metadata` > `Status` to `QA`.
+Move the PRD from "Needs Fixing" to "QA" in `./autopilot/BOARD.md`.
 
 ```bash
 git add -A

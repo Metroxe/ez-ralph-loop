@@ -67,7 +67,6 @@ For each approved PRD, create a file in `./autopilot/prds/` using this template:
 # PRD-<NNN>: <Feature Name>
 
 ## Metadata
-- **Status**: Backlog
 - **Branch**: (not yet created)
 - **Created**: YYYY-MM-DD
 

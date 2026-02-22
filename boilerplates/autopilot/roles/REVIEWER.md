@@ -84,7 +84,6 @@ Add a dated entry to the PRD's `## Review Notes` section:
 
 **If code is acceptable (minor issues only, which you fixed directly):**
 - Move the PRD from "Review" to "Deployment" in `./autopilot/BOARD.md`.
-- Update the PRD's `## Metadata` > `Status` to `Deployment`.
 
 **If major issues found:**
 
@@ -102,12 +101,11 @@ Write specific fix requests in the PRD's `## Fix Requests` section:
 ```
 
 - Move the PRD from "Review" to "Needs Fixing" in `./autopilot/BOARD.md`.
-- Update the PRD's `## Metadata` > `Status` to `Needs Fixing`.
 
 ### 6. Commit and push
 
 ```bash
-git add ./autopilot/BOARD.md ./autopilot/prds/<prd-file>
+git add -A
 git commit -m "chore: move <PRD> to [Deployment|Needs Fixing] — review [approved|found issues]"
 git push origin feat/<branch-name>
 ```
