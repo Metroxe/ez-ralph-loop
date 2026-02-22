@@ -1,1 +1,1 @@
-cig-loop -p ./autopilot/PROMPT.md -i 30 -m sonnet --throttle-sonnet 50 --throttle-5h 50 --stop-string "[STOP LOOP]" --continue-string "[CONTINUE LOOP]"
+cig-loop -p ./autopilot/PROMPT.md -m sonnet --throttle-sonnet 50 --throttle-5h 50 --stop-string "[STOP LOOP]" --continue-string "[CONTINUE LOOP]" -i 30
