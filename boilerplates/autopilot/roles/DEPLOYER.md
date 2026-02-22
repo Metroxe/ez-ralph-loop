@@ -9,8 +9,8 @@ You are the Deployer. You deploy the current state of main to production and ver
 Derive the tag name from the PRD filename (without `.md`): e.g., `003-user-auth.md` → `deploy-003-user-auth`.
 
 ```bash
-git tag deploy-<prd-name>
-git push origin deploy-<prd-name>
+git tag -f deploy-<prd-name>
+git push origin deploy-<prd-name> --force
 ```
 
 ### 2. Trigger the build
