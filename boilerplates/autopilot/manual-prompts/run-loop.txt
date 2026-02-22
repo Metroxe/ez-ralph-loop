@@ -1,1 +1,1 @@
-cig-loop -p ./autopilot/PROMPT.md -m sonnet --throttle-sonnet 50 --throttle-5h 50 --stop-string "[STOP LOOP]" --continue-string "[CONTINUE LOOP]" --log-file ./autopilot/log.txt -i 30
+cig-loop -p ./autopilot/PROMPT.md -m sonnet --enable-mcps playwright --throttle-sonnet 50 --throttle-5h 50 --stop-string "[STOP LOOP]" --continue-string "[CONTINUE LOOP]" --log-file ./autopilot/log.txt -i 30
