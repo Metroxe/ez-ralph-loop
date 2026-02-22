@@ -31,7 +31,7 @@ All services run as Docker containers via docker-compose:
 
 ### CI/CD Flow
 - Workflow: (not yet configured)
-1. Deployer triggers the GitHub Actions workflow via `gh workflow run` after merging to main
+1. Deployer triggers the GitHub Actions workflow via `gh workflow run` when the PRD reaches Deployment
 2. GitHub Actions builds Docker image and pushes to ghcr.io
 3. Watchtower on VPS detects new image, pulls it, and restarts the container
 

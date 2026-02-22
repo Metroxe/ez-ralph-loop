@@ -28,8 +28,11 @@ Read the PRD's `## Dependencies` section. If it lists other PRDs that must be co
 Derive the tag name from the PRD filename (without `.md`): e.g., `003-user-auth.md` → `pre-003-user-auth`.
 
 ```bash
-git tag pre-<prd-name>
+git tag pre-<prd-name> 2>/dev/null
+git push origin pre-<prd-name> 2>/dev/null
 ```
+
+The `2>/dev/null` handles the case where the tag already exists (e.g., after a critical revert and rebuild). The existing tag is still valid.
 
 ### 2. Update the board
 

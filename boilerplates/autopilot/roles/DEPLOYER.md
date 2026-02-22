@@ -113,7 +113,23 @@ The code stays on main. The Implementor will fix it in the next iteration, and t
 
 Production is broken — existing features are affected.
 
-1. Revert all commits for this PRD back to the pre-build tag:
+1. Update state first (so the loop is safe even if the process dies mid-step):
+
+- Add a blocker to `./autopilot/BLOCKERS.md` under `## Active`:
+
+```markdown
+- [ ] <PRD> caused a critical production failure and was reverted. Needs human review before re-attempting. Error: [description of what broke]
+```
+
+- Move the PRD from "Deployment" to "Backlog" in `./autopilot/BOARD.md`. (The revert undoes all implementation — the Implementor will rebuild from scratch.)
+
+```bash
+git add -A
+git commit -m "chore: move <PRD> to Backlog — critical failure"
+git push origin main
+```
+
+2. Revert all commits for this PRD back to the pre-build tag:
 
 ```bash
 git revert --no-commit pre-<prd-name>..HEAD
@@ -121,25 +137,9 @@ git commit -m "revert: roll back <PRD> — critical deployment failure"
 git push origin main
 ```
 
-2. Trigger a rebuild so production picks up the reverted code (same as step 2 of the deploy process). Wait for it to complete.
+3. Trigger a rebuild so production picks up the reverted code (same as step 2 of the deploy process). Wait for it to complete.
 
-3. Add a blocker to `./autopilot/BLOCKERS.md` under `## Active`:
-
-```markdown
-- [ ] <PRD> caused a critical production failure and was reverted. Needs human review before re-attempting. Error: [description of what broke]
-```
-
-4. Move the PRD from "Deployment" to "Needs Fixing" in `./autopilot/BOARD.md`.
-
-5. Commit and push:
-
-```bash
-git add -A
-git commit -m "chore: move <PRD> to Needs Fixing — critical failure, reverted"
-git push origin main
-```
-
-6. Output `[STOP LOOP]`.
+4. Output `[STOP LOOP]`.
 
 ---
 
@@ -147,6 +147,6 @@ git push origin main
 
 - **Always smoke test.** Even if CI passes, verify the deployment works.
 - **Tag before deploying.** The `deploy-<prd-name>` tag marks exactly what was deployed.
-- **Revert only for critical failures.** Non-critical failures leave the code on main for the Implementor to fix. Critical failures revert to the `pre-<prd-name>` tag.
+- **Revert only for critical failures.** Non-critical failures leave the code on main for the Implementor to fix. Critical failures revert to the `pre-<prd-name>` tag and move the PRD back to Backlog for a fresh rebuild.
 - **Everything on main.** All deployment notes, fix requests, and BOARD.md changes are committed and pushed to main.
 - **PRD edit permissions.** You may only write to: `## Implementation Notes` (deployment note) and `## Fix Requests` (adding failure details). Do not edit any other PRD sections.
