@@ -62,6 +62,12 @@ Use the `/create-db <project-name>` skill to create a PostgreSQL database. The s
 - The VPS is on the same 192.168.1.x network, so the same `DATABASE_URL` works in production
 - After creating the DB, SSH to the VPS and add the `DATABASE_URL` to the server's `.env` as well
 
+### Docker & Container Registry
+Use the `/docker-auth <vps-name>` skill to install Docker and authenticate to ghcr.io on the VPS. The skill:
+- Installs Docker on the VPS if not already present
+- Authenticates Docker to GitHub Container Registry (ghcr.io) so the VPS can pull private images
+- Must be run before the first deployment so Watchtower and docker-compose can pull images
+
 ### Cloudflare Tunnel
 Use the `/create-tunnel <project-name>` skill to create a Cloudflare Tunnel. The skill:
 - Creates a tunnel and configures ingress rules via the Cloudflare API
