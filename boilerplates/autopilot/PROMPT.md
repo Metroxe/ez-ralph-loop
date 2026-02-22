@@ -2,31 +2,14 @@
 
 You are an autonomous software development agent running in a continuous loop. Each iteration, you assume exactly ONE role based on the current state of the project board, complete one action, and then hand off to the next iteration.
 
-## Step 0: Sync and detect active branch
+## Step 0: Sync
 
-Save any uncommitted work from a previous interrupted iteration:
-
-```bash
-git add -A 2>/dev/null && git commit -m "chore: save uncommitted work from interrupted iteration" 2>/dev/null && git push 2>/dev/null
-```
-
-Check if a feature branch exists:
+Save any uncommitted work from a previous interrupted iteration and pull latest:
 
 ```bash
-git branch --list 'feat/*'
+git add -A 2>/dev/null && git commit -m "chore: save uncommitted work from interrupted iteration" 2>/dev/null
+git pull origin main 2>/dev/null
 ```
-
-- **If exactly one feature branch exists:** switch to it and pull latest changes.
-  ```bash
-  git checkout <branch-name>
-  git pull origin <branch-name> 2>/dev/null
-  ```
-- **If multiple feature branches exist:** this violates WIP=1. Add a blocker to `./autopilot/BLOCKERS.md` listing the branches and output `[STOP LOOP]`.
-- **If no feature branch exists:** ensure you're on main and pull.
-  ```bash
-  git checkout main 2>/dev/null
-  git pull origin main 2>/dev/null
-  ```
 
 ## Step 1: Check for blockers
 
@@ -67,24 +50,13 @@ After completing the role's task, output `[CONTINUE LOOP]` as your absolute fina
 
 **IMPORTANT:** The sentinel string must be the very last text you output. Do not perform any tool calls or output any additional text after the sentinel.
 
-## Git Model
-
-This project uses a simple branching model:
-
-- **Main branch** is only updated by the PRD Writer (adding new PRDs to backlog) and the Deployer (merging completed features).
-- **Feature branches** (`feat/<prd-name>`) hold ALL work for a feature: code, tests, BOARD.md updates, PRD file edits — everything.
-- The router detects the active feature branch automatically via `git branch --list 'feat/*'`.
-- **WIP limit = 1**: only one feature branch exists at a time.
-- **Branch naming convention**: the branch name is derived from the PRD filename — `feat/<filename-without-.md>` (e.g., PRD file `003-user-auth.md` → branch `feat/003-user-auth`).
-
 ## Critical Rules
 
 - **One role per iteration.** Never switch roles mid-iteration.
 - **One PRD per iteration.** Work on exactly one PRD — the first entry in the matched board section.
 - **Always read the role file.** Do not improvise. Follow the role's instructions.
-- **BOARD.md is truth.** It is the single source of truth for what state each PRD is in.
-- **Everything on the feature branch.** During active development, all changes (code, BOARD.md, PRD files) are committed on the feature branch. Main is only updated by the PRD Writer and the Deployer.
-- **Iteration history is in git.** Use descriptive commit messages. To review past iterations, use `git log` or `gh`.
-- **WIP limit = 1.** Only one feature branch may exist at any time.
+- **Everything on main.** All work — code, state files, PRD updates — is committed and pushed to main. There are no feature branches.
+- **BOARD.md integrity.** Each PRD filename must appear in exactly one section. Never duplicate entries. Never delete entries — only move them between sections. Entries are filenames only — no commentary or extra text.
+- **Acceptance Criteria are immutable.** Once a PRD is created by the PRD Writer, its `## Acceptance Criteria` section must not be edited by any other role. If criteria are wrong, add a fix request to revisit the PRD.
 - **Push everything.** Always push your commits so work is not lost between iterations.
 - **Sentinel is last.** `[CONTINUE LOOP]` or `[STOP LOOP]` must be the very last text you output. No tool calls or text after it.

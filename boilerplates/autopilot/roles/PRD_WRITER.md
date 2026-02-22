@@ -11,6 +11,7 @@ Before deciding, list all files in `./autopilot/prds/` and skim any Done PRDs to
 The project needs a foundation before features. Create an infrastructure PRD.
 
 Evaluate the techstack in NOTES.md and create a PRD for project setup:
+- Create a comprehensive `.gitignore` (this must be the first thing the Implementor does — before any other files are committed)
 - Initialize the project (package.json, tsconfig, etc.)
 - Install core dependencies from the techstack
 - Set up the development server
@@ -40,16 +41,13 @@ Prioritize by:
 
 ### If all MVP features have PRDs
 
-You are in **post-MVP continuous improvement mode**.
+All MVP features from GOAL.md have been planned. Add a blocker to `./autopilot/BLOCKERS.md`:
 
-Explore the project for improvements:
-- **Use the application.** If it has a UI, use the browser MCP to navigate and interact. Look for UX issues, missing polish, confusing flows.
-- **Review the codebase.** Look for performance improvements, missing error handling, code that could be cleaner.
-- **Check the reference material** in GOAL.md for inspiration — are there features from the reference material that would add value?
-- **Think about operational concerns**: monitoring, logging, observability, security hardening, accessibility, SEO.
-- **Consider user feedback patterns**: are there flows that could be simpler? Error messages that could be clearer? Loading states that are missing?
+```markdown
+- [ ] All MVP features have PRDs. Awaiting human direction for post-MVP priorities.
+```
 
-Create a PRD for the most impactful improvement you find.
+Commit, push, and output `[STOP LOOP]`.
 
 ## Create the PRD
 
@@ -79,7 +77,6 @@ Create the file at `./autopilot/prds/<filename>` with this exact structure:
 # PRD-<NNN>: <Feature Name>
 
 ## Metadata
-- **Branch**: (not yet created)
 - **Created**: YYYY-MM-DD
 
 ## Overview
@@ -88,10 +85,13 @@ Create the file at `./autopilot/prds/<filename>` with this exact structure:
 
 ## Acceptance Criteria
 
-- [ ] [Specific, testable criterion 1]
-- [ ] [Specific, testable criterion 2]
-- [ ] [Specific, testable criterion 3]
-- [ ] [Add as many as needed — each must be independently verifiable]
+<!-- Every criterion must follow the format: "When [action], then [expected result]" -->
+<!-- BAD:  "User can log in" -->
+<!-- GOOD: "When POST /api/auth/login is called with valid email/password, then response is 200 with a JWT token in the body" -->
+<!-- GOOD: "When the user clicks 'Add to Cart' on a product page, then the cart count in the header increments by 1" -->
+
+- [ ] When [action], then [expected result]
+- [ ] When [action], then [expected result]
 
 ## Technical Approach
 
@@ -139,7 +139,7 @@ Add the PRD filename to the "Backlog" section of `./autopilot/BOARD.md`.
 ### 5. Commit and push
 
 ```bash
-git add ./autopilot/prds/<filename> ./autopilot/BOARD.md
+git add -A
 git commit -m "chore: create <PRD filename>"
 git push origin main
 ```
@@ -151,7 +151,7 @@ git push origin main
 Before finishing, verify your PRD meets these standards:
 
 - [ ] **Overview** is clear — someone reading it for the first time understands what and why.
-- [ ] **Acceptance criteria** are specific and testable — no vague phrases like "works well" or "looks good".
+- [ ] **Acceptance criteria** follow the "When [action], then [expected result]" format — no vague phrases like "works well" or "user can do X".
 - [ ] **Technical approach** references actual frameworks, tools, and patterns from NOTES.md.
 - [ ] **Test plan** has concrete tests — not just "add tests" but specific test cases with inputs and expected outputs.
 - [ ] **Dependencies** are accurate — the feature can actually be built given what is Done on the board.
@@ -166,4 +166,4 @@ Before finishing, verify your PRD meets these standards:
 - **Acceptance criteria must be testable.** The QA role will verify each one literally.
 - **Check dependencies.** If a feature depends on another PRD that is not Done, note the dependency. The Implementor should not start work until dependencies are resolved.
 - **Keep PRD numbers sequential.** Never reuse a number.
-- **Commit on main.** The PRD Writer always works on main (no feature branch exists yet). PRD files and BOARD.md changes are committed on main.
+- **Commit on main.** PRD files and BOARD.md changes are committed and pushed to main.

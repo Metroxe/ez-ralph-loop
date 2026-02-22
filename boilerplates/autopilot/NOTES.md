@@ -11,17 +11,16 @@
 - ORM: Drizzle
 
 ## Dev Server
-<!-- Used by QA and Implementor to start/stop the dev server for testing. -->
 - Start Command: npm run dev
 - Port: 3000
-<!-- QA will kill any process on this port before starting the server, and kill it again when done testing. -->
+- Test Command: npm test
 
 ## Deployment
 - Type: docker-compose
 - Registry: ghcr.io
+- Production URL: (not yet configured)
 
 ### VPS
-<!-- Provisioned automatically via the /create-vps skill. The SSH alias is the VM name. -->
 - SSH Alias: (not yet provisioned)
 
 ### Docker Services
@@ -31,13 +30,13 @@ All services run as Docker containers via docker-compose:
 - **Watchtower** — `containrrr/watchtower` container, monitors ghcr.io for new images and auto-restarts containers when updates are available
 
 ### CI/CD Flow
-1. Push to main triggers GitHub Actions
+- Workflow: (not yet configured)
+1. Deployer triggers the GitHub Actions workflow via `gh workflow run` after merging to main
 2. GitHub Actions builds Docker image and pushes to ghcr.io
 3. Watchtower on VPS detects new image, pulls it, and restarts the container
-<!-- SSH is only needed for initial VPS setup (install Docker, create docker-compose.yml, create .env). Regular deploys are fully automated via Watchtower. -->
 
 ### Deploy Verification
-After merging to main:
+After triggering the build:
 1. Wait for GitHub Actions to complete: `gh run watch`
 2. Allow ~5 minutes for Watchtower to detect and pull the new image
 3. Smoke test the production URL
@@ -48,7 +47,6 @@ After merging to main:
 - Docker Compose loads `.env` into the app container via `env_file`
 
 ## Infrastructure Provisioning
-<!-- These skills are available to provision infrastructure automatically. Use them when building infrastructure PRDs. -->
 
 ### VPS
 Use the `/create-vps <project-name>` skill to provision a VM on the Proxmox cluster. The skill:

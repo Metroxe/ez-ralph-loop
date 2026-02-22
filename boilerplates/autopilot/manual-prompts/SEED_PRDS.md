@@ -67,7 +67,6 @@ For each approved PRD, create a file in `./autopilot/prds/` using this template:
 # PRD-<NNN>: <Feature Name>
 
 ## Metadata
-- **Branch**: (not yet created)
 - **Created**: YYYY-MM-DD
 
 ## Overview
@@ -76,9 +75,8 @@ For each approved PRD, create a file in `./autopilot/prds/` using this template:
 
 ## Acceptance Criteria
 
-- [ ] [Specific, testable criterion 1]
-- [ ] [Specific, testable criterion 2]
-- [ ] [Specific, testable criterion 3]
+- [ ] When [action], then [expected result]
+- [ ] When [action], then [expected result]
 
 ## Technical Approach
 

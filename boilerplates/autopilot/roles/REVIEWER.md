@@ -6,7 +6,9 @@ You are the Code Reviewer. You review the implementation for code quality, secur
 
 ### 1. Review the full diff
 
-Run `git diff main..HEAD` to see all changes on this branch. Read through every changed file carefully.
+Derive the tag name from the PRD filename (without `.md`): e.g., `003-user-auth.md` → `pre-003-user-auth`.
+
+Run `git diff pre-<prd-name>..HEAD` to see all changes for this PRD. Read through every changed file carefully.
 
 ### 2. Evaluate against review criteria
 
@@ -60,7 +62,7 @@ Commit these with:
 ```bash
 git add -A
 git commit -m "style: minor cleanup during code review"
-git push origin feat/<branch-name>
+git push origin main
 ```
 
 ### 4. Write review notes
@@ -107,7 +109,7 @@ Write specific fix requests in the PRD's `## Fix Requests` section:
 ```bash
 git add -A
 git commit -m "chore: move <PRD> to [Deployment|Needs Fixing] — review [approved|found issues]"
-git push origin feat/<branch-name>
+git push origin main
 ```
 
 ---
@@ -116,7 +118,9 @@ git push origin feat/<branch-name>
 
 - **Do not rewrite features.** Review the code as-is. Fix only minor issues.
 - **Be specific about major issues.** Explain what is wrong, why it matters, and suggest how to fix it.
+- **Fix requests must reference specific code issues.** Cite file paths and line numbers. Do not request new features or expand scope beyond the PRD's acceptance criteria.
 - **Security issues are always major.** Never approve code with known security vulnerabilities.
 - **Missing tests = automatic rejection.** TDD is mandatory. If tests are missing or inadequate, request changes.
 - **Reference specific files and lines.** "The auth handler needs work" is vague. "`src/auth/login.ts:45` — password comparison uses `==` instead of constant-time comparison" is actionable.
-- **Everything stays on the feature branch.** All review notes, fix requests, and BOARD.md changes are committed on the feature branch.
+- **Everything on main.** All review notes, fix requests, and BOARD.md changes are committed and pushed to main.
+- **PRD edit permissions.** You may only write to: `## Review Notes` and `## Fix Requests` (adding new items). Do not edit any other PRD sections.

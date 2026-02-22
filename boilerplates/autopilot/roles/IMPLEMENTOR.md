@@ -23,50 +23,59 @@ Read the PRD's `## Dependencies` section. If it lists other PRDs that must be co
 - If all dependencies are Done (or the PRD has no dependencies): proceed to step 1.
 - If any dependency is NOT Done: skip this PRD. Take the next item from the Backlog that has its dependencies met. If no Backlog items have their dependencies met, add a blocker to `./autopilot/BLOCKERS.md` explaining which PRDs are blocked and why, then output `[STOP LOOP]`.
 
-### 1. Create a feature branch
+### 1. Tag the starting point
 
-Determine the branch name from the PRD filename: `feat/<filename-without-.md>` (e.g., PRD file `003-user-auth.md` → branch `feat/003-user-auth`).
+Derive the tag name from the PRD filename (without `.md`): e.g., `003-user-auth.md` → `pre-003-user-auth`.
 
 ```bash
-git checkout -b feat/<branch-name>
+git tag pre-<prd-name>
 ```
 
 ### 2. Update the board
 
-Move the PRD from "Backlog" to "In Progress" in `./autopilot/BOARD.md`. Update the PRD's `## Metadata` > `Branch` to `feat/<branch-name>`.
+Move the PRD from "Backlog" to "In Progress" in `./autopilot/BOARD.md`.
 
 Commit and push:
 
 ```bash
-git add ./autopilot/BOARD.md ./autopilot/prds/<prd-file>
+git add -A
 git commit -m "chore: move <PRD> to In Progress"
-git push -u origin feat/<branch-name>
+git push origin main
 ```
 
 ### 3. Write tests FIRST (TDD — Red Phase)
 
 Read the PRD's `## Test Plan` and `## Acceptance Criteria` sections. Write failing tests that verify each acceptance criterion. Do not write any implementation code yet.
 
-Run the tests to confirm they fail (red phase).
+Run the tests to confirm they fail (red phase). Commit:
+
+```bash
+git add -A && git commit -m "test: add tests for <feature>" && git push origin main
+```
+
+> **Infrastructure PRDs:** If the PRD is infrastructure (project setup, CI/CD, database config), write verification tests after setup instead of strict test-first. For example: "test that dev server starts," "test that database connects." Commit tests alongside the infrastructure code.
 
 ### 4. Implement (TDD — Green Phase)
 
-Write the minimum code needed to make all tests pass.
+Write the minimum code needed to make all tests pass. Commit:
+
+```bash
+git add -A && git commit -m "feat: implement <feature>" && git push origin main
+```
 
 ### 5. Refactor (TDD — Refactor Phase)
 
-Clean up the implementation. Ensure tests still pass.
+Clean up the implementation. Ensure tests still pass. Commit if changes were made:
+
+```bash
+git add -A && git commit -m "refactor: clean up <feature>" && git push origin main
+```
 
 ### 6. Run the full test suite
 
 Run all tests (not just the new ones) to check for regressions.
 
-### 7. Commit, push, and update the board
-
-Use conventional commits:
-- `test: add tests for <feature>`
-- `feat: implement <feature>`
-- `refactor: clean up <feature>` (if applicable)
+### 7. Update the board
 
 Move the PRD from "In Progress" to "QA" in `./autopilot/BOARD.md`. Add a note to the PRD's `## Implementation Notes`:
 
@@ -80,7 +89,7 @@ Move the PRD from "In Progress" to "QA" in `./autopilot/BOARD.md`. Add a note to
 ```bash
 git add -A
 git commit -m "chore: move <PRD> to QA"
-git push origin feat/<branch-name>
+git push origin main
 ```
 
 ---
@@ -114,7 +123,7 @@ Move the PRD from "Needs Fixing" to "QA" in `./autopilot/BOARD.md`.
 ```bash
 git add -A
 git commit -m "fix: <description of fixes>"
-git push origin feat/<branch-name>
+git push origin main
 ```
 
 ---
@@ -152,7 +161,7 @@ Monitor your context usage as you work. If you are approaching the limit (~150k 
 ```bash
 git add -A
 git commit -m "wip: progress on <feature> — saving before context limit"
-git push origin feat/<branch-name>
+git push origin main
 ```
 
 3. **Keep the PRD in "In Progress"** on the board. Do NOT move it to QA.
@@ -178,9 +187,12 @@ If you encounter something requiring human intervention (need API keys, service 
 
 ## Critical Rules
 
-- **TDD is mandatory.** Write tests before implementation for every feature.
+- **TDD is mandatory.** Write tests before implementation for every feature. Infrastructure PRDs may use verification tests written alongside the implementation instead of strict test-first.
+- **Tag before building.** Always create a `pre-<prd-name>` tag before starting a new PRD. This is the rollback point if deployment fails.
 - **One PRD per iteration.** Do not start a second PRD.
 - **Check dependencies before starting.** Do not build a PRD whose dependencies are not Done.
-- **Everything stays on the feature branch.** All code, tests, BOARD.md changes, and PRD file updates are committed on the feature branch. Do not switch to main.
+- **Everything on main.** All code, tests, BOARD.md changes, and PRD updates are committed and pushed to main.
 - **Always push.** Every iteration must push its commits so work is not lost.
 - **Use conventional commits.** `feat:`, `fix:`, `test:`, `refactor:`, `chore:`.
+- **Update NOTES.md when you make decisions.** If you choose a test framework, configure a linter, set up a CI workflow, or make any other decision that future iterations need to know — update the relevant field in NOTES.md. Do not change the Deployment, Docker Services, CI/CD Flow, Infrastructure Provisioning, or Preferences sections.
+- **PRD edit permissions.** You may only write to: `## Implementation Notes` and `## Fix Requests` (marking items as done). Do not edit Acceptance Criteria, Overview, Technical Approach, Test Plan, QA Notes, or Review Notes.
