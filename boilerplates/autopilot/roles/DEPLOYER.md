@@ -113,7 +113,13 @@ The code stays on main. The Implementor will fix it in the next iteration, and t
 
 Production is broken — existing features are affected.
 
-1. Update state first (so the loop is safe even if the process dies mid-step):
+1. Revert all commits and update state in a single atomic commit:
+
+```bash
+git revert --no-commit pre-<prd-name>..HEAD
+```
+
+This stages the reversal of all changes since the pre-build tag (code, state files, PRD notes). Now, before committing, fix up the state files on top of the staged revert:
 
 - Add a blocker to `./autopilot/BLOCKERS.md` under `## Active`:
 
@@ -121,25 +127,19 @@ Production is broken — existing features are affected.
 - [ ] <PRD> caused a critical production failure and was reverted. Needs human review before re-attempting. Error: [description of what broke]
 ```
 
-- Move the PRD from "Deployment" to "Backlog" in `./autopilot/BOARD.md`. (The revert undoes all implementation — the Implementor will rebuild from scratch.)
+- Verify `./autopilot/BOARD.md` has the PRD in "Backlog" (the revert restored it to the pre-tag state where the PRD Writer originally placed it).
+
+Commit and push everything as one atomic operation:
 
 ```bash
 git add -A
-git commit -m "chore: move <PRD> to Backlog — critical failure"
-git push origin main
-```
-
-2. Revert all commits for this PRD back to the pre-build tag:
-
-```bash
-git revert --no-commit pre-<prd-name>..HEAD
 git commit -m "revert: roll back <PRD> — critical deployment failure"
 git push origin main
 ```
 
-3. Trigger a rebuild so production picks up the reverted code (same as step 2 of the deploy process). Wait for it to complete.
+2. Trigger a rebuild so production picks up the reverted code (same as step 2 of the deploy process). Wait for it to complete.
 
-4. Output `[STOP LOOP]`.
+3. Output `[STOP LOOP]`.
 
 ---
 
