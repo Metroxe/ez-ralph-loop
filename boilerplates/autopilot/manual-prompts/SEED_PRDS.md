@@ -139,7 +139,7 @@ git push origin main
 
 List all created PRDs with their filenames and a brief description.
 
-Tell the user: "Your PRDs are ready. Start the loop with: `cig-loop -p ./autopilot/PROMPT.md -i 0`"
+Tell the user: "Your PRDs are ready. Start the loop with the command in `./autopilot/manual-prompts/run-loop.txt`"
 
 ## Guidelines
 

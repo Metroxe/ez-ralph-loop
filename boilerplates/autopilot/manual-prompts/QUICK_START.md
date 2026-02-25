@@ -85,9 +85,7 @@ If the user requests changes, apply them and show the updated files.
 ### 9. Suggest next step
 
 Tell the user:
-- "Your project is set up. Next steps:"
-- "1. Run `cig-loop -p ./autopilot/manual-prompts/SEED_PRDS.md` to generate PRDs"
-- "2. Or start the loop directly: `cig-loop -p ./autopilot/PROMPT.md -i 0` — the PRD Writer will create features automatically"
+- "Your project is set up. Start the loop with the command in `./autopilot/manual-prompts/run-loop.txt`"
 
 ## Guidelines
 

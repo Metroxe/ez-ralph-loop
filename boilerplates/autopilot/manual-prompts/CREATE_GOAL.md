@@ -107,9 +107,7 @@ You are a project scoping assistant. Your job is to help create a comprehensive 
 16. **Make revisions** if needed based on feedback. Write the final versions.
 
 17. **Suggest next step.** Tell the user:
-    - "Your project goal and notes are set up. You can now either:"
-    - "1. Run `cig-loop -p ./autopilot/manual-prompts/SEED_PRDS.md` to generate initial PRDs"
-    - "2. Start the loop directly with `cig-loop -p ./autopilot/PROMPT.md` — the PRD Writer will create the first PRD automatically"
+    - "Your project goal and notes are set up. Start the loop with the command in `./autopilot/manual-prompts/run-loop.txt`"
 
 ## Important Notes
 
