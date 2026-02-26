@@ -788,6 +788,24 @@ async function validateConfig(config: LoopConfig): Promise<void> {
   }
 }
 
+// ─── Gitignore Helper ──────────────────────────────────────────────────
+
+async function ensureLogFileInGitignore(logFile: string): Promise<void> {
+  const gitignorePath = `${process.cwd()}/.gitignore`;
+  const entry = logFile.startsWith("./") ? logFile.slice(2) : logFile;
+  const gi = Bun.file(gitignorePath);
+
+  if (await gi.exists()) {
+    const content = await gi.text();
+    const lines = content.split("\n");
+    if (lines.some((l) => l.trim() === entry)) return;
+    const needsNewline = content.length > 0 && !content.endsWith("\n");
+    await Bun.write(gi, content + (needsNewline ? "\n" : "") + entry + "\n");
+  } else {
+    await Bun.write(gi, entry + "\n");
+  }
+}
+
 // ─── Cig Loop ──────────────────────────────────────────────────────────
 
 async function runLoop(config: LoopConfig): Promise<void> {
@@ -1009,6 +1027,9 @@ async function main(): Promise<void> {
 
   // Validate
   await validateConfig(config);
+
+  // Ensure log file is gitignored
+  if (config.logFile) await ensureLogFileInGitignore(config.logFile);
 
   // Show version
   console.log(chalk.bold(`cig-loop v${VERSION}`));
